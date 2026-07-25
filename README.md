@@ -60,7 +60,7 @@ The document analyzer uses the following safeguards:
 - **Request validation:** Zod rejects unknown fields, malformed requests, source text outside 50–15,000 characters, unsupported perspectives, and concerns longer than 500 characters.
 - **Response validation:** the model must return strict structured JSON. Zod validates every field before the browser receives it. One format-repair attempt is allowed; a second invalid response produces a controlled error.
 - **Prompt-injection defense:** pasted text is delimited as an untrusted source document. The model is told to ignore instructions inside it and receives no tools, browsing, email, or external-action capability.
-- **Cost controls:** each server instance applies an in-memory limit of approximately five requests per IP per ten minutes, a 30-second model timeout, and a 4,000-token output limit.
+- **Cost controls:** each server instance applies an in-memory limit of approximately five requests per IP per ten minutes, a 35-second model timeout, low reasoning effort for this structured extraction task, and a 4,000-token output limit.
 - **Safe rendering:** model output is rendered as React text, never arbitrary HTML. Model-generated URLs are not made automatically clickable; actionable contact links come from curated application data only.
 - **Grounding:** missing values use `Not specified in the provided text`; documented facts are separated from potential implications; significant findings can include short, exact source excerpts.
 - **Verification:** the interface reminds users to verify dates, procedures, decision details, contacts, and representatives through the issuing government body.

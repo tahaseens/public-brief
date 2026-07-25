@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const MODEL_TIMEOUT_MS = 30_000;
+const MODEL_TIMEOUT_MS = 35_000;
 const MODEL_OUTPUT_TOKENS = 4_000;
 const NOT_SPECIFIED = "Not specified in the provided text";
 
@@ -104,6 +104,12 @@ export async function POST(request: Request) {
 
     return jsonNoStore(brief, 200);
   } catch (error) {
+    if (error instanceof OpenAI.APIConnectionTimeoutError) {
+      return jsonNoStore(
+        { error: "The analysis took too long to finish. Please try again with a shorter excerpt." },
+        504,
+      );
+    }
     const message = error instanceof InvalidModelResponseError
       ? "The AI response could not be validated. Please try again."
       : "We could not generate a brief right now. Please try again.";
@@ -124,6 +130,7 @@ async function generateAndValidateBrief(
       instructions: `${instructions}${repairInstruction}`,
       input: `Reader perspective: ${input.perspective}\nPrimary concern: ${input.concern || "Not provided"}\n\n<source_document>\n${input.text}\n</source_document>`,
       max_output_tokens: MODEL_OUTPUT_TOKENS,
+      reasoning: { effort: "low" },
       text: {
         format: {
           type: "json_schema",

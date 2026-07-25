@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { loudounAgendaItems } from "@/data/agenda-items";
 import { localityOptions, loudounCounty, stateOptions } from "@/data/localities";
 import { topicCategories, type AgendaItem, type GovernmentContact, type TopicCategory } from "@/lib/locality";
-
-const localitySubmissionUrl = "https://github.com/tahaseens/public-brief/issues/new?title=Locality%20information%3A%20&body=Locality%3A%0AState%3A%0AOfficial%20agenda%20or%20meeting%20URL%3A%0AOfficial%20government%20directory%20URL%3A%0AOther%20relevant%20official%20sources%3A%0A%0APlease%20do%20not%20include%20private%20personal%20information.";
 
 export function LocalityDashboard() {
   const [activeTopic, setActiveTopic] = useState<TopicCategory>("Public Money");
   const [selectedItem, setSelectedItem] = useState<AgendaItem | null>(null);
   const [district, setDistrict] = useState("");
+  const [localityApplied, setLocalityApplied] = useState(false);
   const detailRef = useRef<HTMLElement>(null);
+  const feedRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = useMemo(
     () => loudounAgendaItems.filter((item) => item.categories.includes(activeTopic)),
@@ -24,7 +24,17 @@ export function LocalityDashboard() {
 
   function openItem(item: AgendaItem) {
     setSelectedItem(item);
-    requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    requestAnimationFrame(() => {
+      detailRef.current?.focus({ preventScroll: true });
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function submitLocality(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSelectedItem(null);
+    setLocalityApplied(true);
+    requestAnimationFrame(() => feedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function handleTopicKeys(event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) {
@@ -50,7 +60,7 @@ export function LocalityDashboard() {
         <span className="demo-badge">Demonstration data</span>
       </div>
 
-      <div className="locality-controls">
+      <form className="locality-controls" onSubmit={submitLocality}>
         <div className="control-group">
           <label htmlFor="state-select">State</label>
           <select id="state-select" defaultValue="virginia">
@@ -69,7 +79,7 @@ export function LocalityDashboard() {
         </div>
         <div className="control-group">
           <label htmlFor="district-select">Local district <span>Optional</span></label>
-          <select id="district-select" value={district} onChange={(event) => setDistrict(event.target.value)}>
+          <select id="district-select" value={district} onChange={(event) => { setDistrict(event.target.value); setLocalityApplied(false); }}>
             <option value="">Not selected</option>
             {loudounCounty.representatives.filter((person) => person.district).map((person) => (
               <option key={person.district} value={person.district}>{person.district} District</option>
@@ -77,10 +87,16 @@ export function LocalityDashboard() {
           </select>
         </div>
         <div className="control-group submission-control">
-          <span className="control-label">Contribute</span>
-          <a className="locality-submit-button" href={localitySubmissionUrl} target="_blank" rel="noopener noreferrer" aria-label="Submit locality information on GitHub; opens in a new tab">Submit locality information</a>
+          <span className="control-label">Apply selection</span>
+          <button className={`locality-submit-button ${localityApplied ? "applied" : ""}`} type="submit" aria-describedby="locality-selection-status">
+            {localityApplied ? "Locality applied" : "Submit locality information"}
+          </button>
         </div>
-      </div>
+      </form>
+
+      <p className="locality-selection-notice" id="locality-selection-status" role="status" aria-live="polite">
+        {localityApplied ? `Showing prototype items for Loudoun County, Virginia${district ? ` — ${district} District` : ""}.` : ""}
+      </p>
 
       <div className="dashboard-source-note">
         <div>
@@ -91,7 +107,7 @@ export function LocalityDashboard() {
         <a href="https://www.loudoun.gov/Meetings" target="_blank" rel="noopener noreferrer">Check official meeting materials</a>
       </div>
 
-      <div className="topic-tabs" role="tablist" aria-label="Agenda topics">
+      <div className="topic-tabs" ref={feedRef} role="tablist" aria-label="Agenda topics">
         {topicCategories.map((topic, topicIndex) => (
           <button
             id={topicTabId(topic)}
@@ -114,7 +130,7 @@ export function LocalityDashboard() {
       {filteredItems.length ? (
         <div id="agenda-topic-panel" className="agenda-grid" role="tabpanel" aria-labelledby={topicTabId(activeTopic)}>
           {filteredItems.map((item) => (
-            <AgendaCard key={item.id} item={item} activeTopic={activeTopic} onOpen={() => openItem(item)} />
+            <AgendaCard key={item.id} item={item} activeTopic={activeTopic} isOpen={selectedItem?.id === item.id} onOpen={() => openItem(item)} />
           ))}
         </div>
       ) : (
@@ -133,7 +149,7 @@ export function LocalityDashboard() {
   );
 }
 
-function AgendaCard({ item, activeTopic, onOpen }: { item: AgendaItem; activeTopic: TopicCategory; onOpen: () => void }) {
+function AgendaCard({ item, activeTopic, isOpen, onOpen }: { item: AgendaItem; activeTopic: TopicCategory; isOpen: boolean; onOpen: () => void }) {
   return (
     <article className="agenda-card">
       <div className="agenda-card-top"><span className="demo-badge compact">Demo</span><span>{item.governmentLevel}</span></div>
@@ -145,7 +161,7 @@ function AgendaCard({ item, activeTopic, onOpen }: { item: AgendaItem; activeTop
       <div className="why-matters"><strong>Why this may matter</strong><p>{item.whyItMatters}</p></div>
       <p className="agenda-status">{item.status}</p>
       <div className="agenda-card-actions">
-        <button type="button" className="brief-link" onClick={onOpen}>View full brief</button>
+        <button type="button" className={`brief-link ${isOpen ? "active" : ""}`} aria-pressed={isOpen} onClick={onOpen}>{isOpen ? "Brief opened" : "View full brief"}</button>
         {safeHttpsUrl(item.sourceUrl) && <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open official source for ${item.title}; opens in a new tab`}>Official government source ↗</a>}
       </div>
     </article>

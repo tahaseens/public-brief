@@ -80,12 +80,14 @@ export default function Home() {
         <p>PublicBrief DMV helps residents understand upcoming government decisions involving public money, surveillance, land use, infrastructure, and community services. It identifies what is being proposed, who is responsible for the decision, what information may be missing, and how residents can participate before a final vote.</p>
       </section>
 
-      <nav className="mode-switcher" aria-label="PublicBrief modes" role="tablist">
-        <button id="scan-tab" type="button" role="tab" aria-selected={mode === "scan"} aria-controls="scan-panel" tabIndex={mode === "scan" ? 0 : -1} className={mode === "scan" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("scan")}><span>01</span> Scan My Locality</button>
-        <button id="analyze-tab" type="button" role="tab" aria-selected={mode === "analyze"} aria-controls="analyze-panel" tabIndex={mode === "analyze" ? 0 : -1} className={mode === "analyze" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("analyze")}><span>02</span> Analyze a Document</button>
-      </nav>
+      <section className="mode-content" aria-label="PublicBrief tools">
+        <nav className="mode-switcher" aria-label="PublicBrief modes" role="tablist">
+          <button id="scan-tab" type="button" role="tab" aria-selected={mode === "scan"} aria-controls="scan-panel" tabIndex={mode === "scan" ? 0 : -1} className={mode === "scan" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("scan")}><span>01</span> Scan My Locality</button>
+          <button id="analyze-tab" type="button" role="tab" aria-selected={mode === "analyze"} aria-controls="analyze-panel" tabIndex={mode === "analyze" ? 0 : -1} className={mode === "analyze" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("analyze")}><span>02</span> Analyze a Document</button>
+        </nav>
 
-      {mode === "scan" ? <div id="scan-panel" role="tabpanel" aria-labelledby="scan-tab"><LocalityDashboard /></div> : <DocumentAnalyzer />}
+        {mode === "scan" ? <div id="scan-panel" role="tabpanel" aria-labelledby="scan-tab"><LocalityDashboard /></div> : <DocumentAnalyzer />}
+      </section>
 
       <footer><div className="brand"><span className="brand-mark" aria-hidden="true">PB</span><span>PublicBrief <small>DMV</small></span></div><p>Understanding Public Decisions</p><p>Politically neutral. Not legal advice, always verify official details.</p></footer>
     </main>
@@ -170,10 +172,10 @@ function DocumentAnalyzer() {
             <h2 id="workspace-title">Add the public text</h2>
             <p className="pdf-help">Working from a PDF? If its text won’t copy cleanly, use a PDF-to-Markdown tool to extract the document, review the output against the original, then paste it here.</p>
           </div>
-          <button className="sample-button" type="button" onClick={loadSample}>Load a sample notice</button>
+          <button className={`sample-button ${sampleLoaded ? "loaded" : ""}`} type="button" onClick={loadSample}>{sampleLoaded ? "Sample loaded" : "Load a sample notice"}</button>
         </div>
 
-        <form onSubmit={submit}>
+        <form onSubmit={submit} aria-busy={status === "loading"}>
           <div className="textarea-wrap">
             <label htmlFor="source-text">Government agenda item or public notice</label>
             <textarea id="source-text" value={text} onChange={(event) => { setText(event.target.value); setSampleLoaded(false); }} maxLength={15000} placeholder="Paste the full text here…" aria-describedby={`text-help${status === "error" ? " analysis-error" : ""}`} aria-invalid={status === "error"} />
@@ -199,8 +201,8 @@ function DocumentAnalyzer() {
 
           {sampleLoaded && <p className="sample-ready" role="status">Demo-ready sample loaded</p>}
 
-          <button ref={generateButtonRef} className={`generate-button ${sampleLoaded ? "sample-attention" : ""}`} type="submit" disabled={status === "loading" || text.trim().length === 0} aria-describedby={sampleLoaded ? "sample-generate-note" : undefined}>
-            {status === "loading" ? <><span className="spinner" /> Reading the public record…</> : <>Generate Public Brief</>}
+          <button ref={generateButtonRef} className={`generate-button ${sampleLoaded ? "sample-attention" : ""}`} type="submit" disabled={status === "loading" || text.trim().length === 0} aria-describedby={sampleLoaded ? "sample-generate-note" : undefined} aria-live="polite">
+            {status === "loading" ? <><span className="spinner" aria-hidden="true" /> Generating your brief…</> : <>Generate Public Brief</>}
           </button>
           {sampleLoaded && <span className="sr-only" id="sample-generate-note">The demonstration sample is ready to analyze.</span>}
           <p className="privacy-note">Your text is sent to an AI provider for analysis. Don’t paste sensitive personal information. PublicBrief does not intentionally store submitted text in the application.</p>
@@ -214,7 +216,7 @@ function DocumentAnalyzer() {
       )}
 
       {status === "loading" && (
-        <section className="loading-state" aria-live="polite">
+        <section className="loading-state" role="status" aria-live="polite" aria-label="Generating your PublicBrief">
           <div className="loading-line wide"/><div className="loading-line"/><div className="loading-cards"><div/><div/><div/></div>
         </section>
       )}
@@ -246,21 +248,22 @@ function DocumentAnalyzer() {
 
           <div className="card-grid">
             <ResultCard
-              {...sectionByKey.proposedAction}
+              title={sectionByKey.proposedAction.title}
+              hint={sectionByKey.proposedAction.hint}
               value={brief.proposedAction}
               evidence={brief.evidenceFindings.proposedAction}
               index={1}
               relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === "proposedAction"}
             />
+            <PerspectiveCard perspective={submittedPerspective} summary={brief.perspectiveSummary} index={2} />
             <DecisionRolesCard
               brief={brief}
-              index={2}
+              index={3}
               relevant={submittedConcern !== "" && ["decisionMakingBody", "responsibleEntities"].includes(brief.concernFocus.mostRelevantSection)}
             />
             {primarySectionKeys.slice(1).map((key, index) => (
-              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={brief.evidenceFindings[key]} index={index + 3} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={brief.evidenceFindings[key]} index={index + 4} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
-            <PerspectiveCard perspective={submittedPerspective} summary={brief.perspectiveSummary} index={5} />
             {secondarySectionKeys.map((key, index) => (
               <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={key === "affectedGroups" ? undefined : brief.evidenceFindings[key]} index={index + 6} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
