@@ -2,6 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useMemo, useRef, useState } from "react";
 import type { PublicBrief } from "@/lib/brief";
+import { readBriefApiResponse } from "@/lib/brief-response";
 import { LocalityDashboard } from "@/components/locality-dashboard";
 
 const SAMPLE_NOTICE = `RESOLUTION OF THE BOARD OF SUPERVISORS OF LOUDOUN COUNTY, VIRGINIA, ADOPTING GRANDFATHERING RULES FOR ZOAM-2024-0001, DATA CENTER STANDARDS AND LOCATIONS, PHASE I
@@ -142,9 +143,8 @@ function DocumentAnalyzer() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, perspective, concern }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "The brief could not be generated.");
-      setBrief(data);
+      const data = await readBriefApiResponse(response);
+      setBrief(data as PublicBrief);
       setSubmittedConcern(concern.trim());
       setSubmittedPerspective(perspective);
       setStatus("success");

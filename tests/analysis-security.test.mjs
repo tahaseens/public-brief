@@ -4,6 +4,7 @@ import { analysisRequestSchema, isOversizedSource } from "../lib/analysis-reques
 import { publicBriefSchema } from "../lib/brief.ts";
 import { InMemoryRateLimiter } from "../lib/rate-limit.ts";
 import { normalizeMonthDateFormatting } from "../lib/date-format.ts";
+import { readBriefApiResponse } from "../lib/brief-response.ts";
 
 const validRequest = {
   text: "A public body will consider this agenda item at a future meeting. This sentence supplies enough source text.",
@@ -38,4 +39,25 @@ test("generated month and day punctuation is normalized without changing other t
   assert.equal(normalizeMonthDateFormatting("March: 18, 2025: Board action"), "March 18, 2025: Board action");
   assert.equal(normalizeMonthDateFormatting("February: 12, 2025"), "February 12, 2025");
   assert.equal(normalizeMonthDateFormatting("The source quotes March: 18 as written"), "The source quotes March: 18 as written");
+});
+
+test("non-JSON gateway responses become controlled user-facing errors", async () => {
+  await assert.rejects(
+    () => readBriefApiResponse(new Response("<html>Gateway timeout</html>", { status: 504 })),
+    /analysis took too long/i,
+  );
+  await assert.rejects(
+    () => readBriefApiResponse(new Response("Bad gateway", { status: 502 })),
+    /temporarily unavailable/i,
+  );
+});
+
+test("JSON API errors are preserved without exposing parser failures", async () => {
+  await assert.rejects(
+    () => readBriefApiResponse(new Response(
+      JSON.stringify({ error: "You’ve reached the temporary analysis limit." }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    )),
+    /temporary analysis limit/i,
+  );
 });
