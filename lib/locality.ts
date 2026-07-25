@@ -61,6 +61,7 @@ export type AgendaItem = {
   contacts?: GovernmentContact[];
   participationOptions: string[];
   representativeDistricts?: string[];
+  featured?: true;
   demonstration: true;
 };
 

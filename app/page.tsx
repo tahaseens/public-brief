@@ -118,18 +118,21 @@ function DocumentAnalyzer() {
   const [sampleLoaded, setSampleLoaded] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
   const generateButtonRef = useRef<HTMLButtonElement>(null);
+  const requestInFlightRef = useRef(false);
 
   const charCount = text.length;
   const fullBrief = useMemo(() => brief ? briefToText(brief) : "", [brief]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (requestInFlightRef.current) return;
     if (text.trim().length < 40) {
       setError("Paste at least 40 characters so there is enough source material to review.");
       setStatus("error");
       return;
     }
 
+    requestInFlightRef.current = true;
     setStatus("loading");
     setError("");
     setBrief(null);
@@ -149,6 +152,8 @@ function DocumentAnalyzer() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
       setStatus("error");
+    } finally {
+      requestInFlightRef.current = false;
     }
   }
 
@@ -183,7 +188,7 @@ function DocumentAnalyzer() {
             <h2 id="workspace-title">Add the public text</h2>
             <p className="pdf-help">Working from a PDF? If its text won’t copy cleanly, use a PDF-to-Markdown tool to extract the document, review the output against the original, then paste it here.</p>
           </div>
-          <button className={`sample-button ${sampleLoaded ? "loaded" : ""}`} type="button" onClick={loadSample}>{sampleLoaded ? "Sample loaded" : "Load a sample notice"}</button>
+          <button className={`sample-button ${sampleLoaded ? "loaded" : ""}`} type="button" onClick={loadSample} disabled={status === "loading"}>{sampleLoaded ? "Sample loaded" : "Load a sample notice"}</button>
         </div>
 
         <form onSubmit={submit} aria-busy={status === "loading"}>
@@ -210,9 +215,9 @@ function DocumentAnalyzer() {
 
           {status === "error" && <div className="message error" id="analysis-error" role="alert"><strong>We hit a snag.</strong> {error}</div>}
 
-          {sampleLoaded && <p className="sample-ready" role="status">Demo-ready sample loaded</p>}
+          {sampleLoaded && <div className="sample-ready-block"><p className="sample-ready" role="status">Demo-ready sample loaded</p><p className="sample-explanation" id="sample-decision-note">This completed-decision example demonstrates source analysis. The locality feed is designed to surface consequential items earlier in the decision process.</p></div>}
 
-          <button ref={generateButtonRef} className={`generate-button ${sampleLoaded ? "sample-attention" : ""}`} type="submit" disabled={status === "loading" || text.trim().length === 0} aria-describedby={sampleLoaded ? "sample-generate-note" : undefined} aria-live="polite">
+          <button ref={generateButtonRef} className={`generate-button ${sampleLoaded ? "sample-attention" : ""}`} type="submit" disabled={status === "loading" || text.trim().length === 0} aria-describedby={sampleLoaded ? "sample-decision-note sample-generate-note" : undefined} aria-live="polite">
             {status === "loading" ? <><span className="spinner" aria-hidden="true" /> Generating your brief…</> : <>Generate Public Brief</>}
           </button>
           {sampleLoaded && <span className="sr-only" id="sample-generate-note">The demonstration sample is ready to analyze.</span>}

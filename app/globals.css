@@ -37,6 +37,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .section-label { margin:0; color:var(--green); font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
 .demo-badge { display:inline-flex; align-items:center; min-height:26px; padding:5px 9px; border:1px solid #a78330; background:#f4ead0; color:#705515; font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
 .demo-badge.compact { min-height:22px; padding:3px 6px; }
+.featured-demo-badge { display:inline-flex; align-items:center; min-height:22px; padding:3px 7px; border:1px solid var(--green); background:#edf1e4; color:var(--green); font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
 .locality-controls { display:grid; grid-template-columns:.65fr 1.15fr 1fr .85fr; gap:1px; padding:1px; background:var(--line); }
 .control-group { padding:15px 17px; background:#fbf9f3; }
 .control-group label,.control-label { display:block; margin-bottom:8px; color:var(--muted); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
@@ -181,7 +182,9 @@ textarea::placeholder, input::placeholder { color:#829088; }
 .generate-button { margin-top:28px; width:100%; min-height:64px; border:0; background:var(--lime); color:var(--ink); display:flex; justify-content:center; align-items:center; gap:12px; font-weight:800; }
 .generate-button:hover:not(:disabled) { background:#e5f59b; }
 .generate-button:disabled { opacity:.55; cursor:not-allowed; }
-.sample-ready { display:inline-block; margin:20px 0 -10px; padding:7px 10px; border:1px solid var(--lime); color:var(--lime); font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.sample-ready-block { margin:20px 0 -10px; }
+.sample-ready { display:inline-block; margin:0; padding:7px 10px; border:1px solid var(--lime); color:var(--lime); font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.sample-explanation { max-width:720px; margin:10px 0 0; color:#b8c1bc; font-size:12px; line-height:1.55; }
 .generate-button.sample-attention { box-shadow:0 0 0 4px rgba(216,238,117,.24); }
 .spinner { width:18px; height:18px; border:2px solid #738039; border-top-color:var(--ink); border-radius:50%; animation:spin .75s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }

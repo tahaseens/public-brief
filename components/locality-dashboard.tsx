@@ -14,7 +14,9 @@ export function LocalityDashboard() {
   const feedRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = useMemo(
-    () => loudounAgendaItems.filter((item) => item.categories.includes(activeTopic)),
+    () => loudounAgendaItems
+      .filter((item) => item.categories.includes(activeTopic))
+      .sort((first, second) => Number(Boolean(second.featured)) - Number(Boolean(first.featured))),
     [activeTopic],
   );
 
@@ -152,7 +154,7 @@ export function LocalityDashboard() {
 function AgendaCard({ item, activeTopic, isOpen, onOpen }: { item: AgendaItem; activeTopic: TopicCategory; isOpen: boolean; onOpen: () => void }) {
   return (
     <article className="agenda-card">
-      <div className="agenda-card-top"><span className="demo-badge compact">Demo</span><span>{item.governmentLevel}</span></div>
+      <div className="agenda-card-top"><span className={item.featured ? "featured-demo-badge" : "demo-badge compact"}>{item.featured ? "Featured demo" : "Demo"}</span><span>{item.governmentLevel}</span></div>
       <h3>{item.title}</h3>
       <p className="agenda-meta"><strong>{item.governingBody}</strong><span>{item.meetingDate}</span></p>
       <div className="category-badges">
@@ -254,7 +256,7 @@ function ContactList({
   contacts?: GovernmentContact[];
   representative?: (typeof loudounCounty.representatives)[number];
 }) {
-  const resolvedContacts = contacts?.slice(0, 3).map((contact) => {
+  const resolvedContacts = contacts?.slice(0, 4).map((contact) => {
     if (contact.id !== "district-representative" || !representative) return contact;
     return {
       ...contact,
@@ -277,7 +279,11 @@ function ContactList({
         <div className="contact-list">
           {resolvedContacts.map((contact) => {
             const primaryName = contact.name || contact.organization || contact.title;
-            const websiteLabel = contact.id === "district-representative" && !representative ? "View directory" : "Official page";
+            const websiteLabel = contact.id === "voting-body" ? "View official board page"
+              : contact.id === "responsible-department" ? "View department page"
+                : contact.id === "public-input" ? "View participation options"
+                  : contact.id === "district-representative" ? "Find your representative"
+                    : "Official page";
             return (
               <section className="contact-entry" key={contact.id} aria-labelledby={`contact-${contact.id}`}>
                 <h4 id={`contact-${contact.id}`}>{contact.roleLabel}</h4>
@@ -299,7 +305,7 @@ function ContactList({
         <p className="contact-empty">Contact information is not yet available for this item. Check the issuing government body’s official meeting page or staff report.</p>
       )}
 
-      <p className="contact-footer">Confirm your district and current representative through the official government directory before contacting them.</p>
+      <p className="contact-footer">Confirm the current contact and participation process through the official government website.</p>
     </div>
   );
 }

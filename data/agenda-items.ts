@@ -3,6 +3,7 @@ import type { AgendaItem } from "@/lib/locality";
 const boardUrl = "https://www.loudoun.gov/86/Board-of-Supervisors";
 const boardInputUrl = "https://www.loudoun.gov/4853/About-Board-of-Supervisors-Meetings";
 const directoryUrl = "https://www.loudoun.gov/Directory.aspx";
+const housingDepartmentUrl = "https://www.loudoun.gov/housing";
 
 export const loudounAgendaItems: AgendaItem[] = [
   {
@@ -46,6 +47,7 @@ export const loudounAgendaItems: AgendaItem[] = [
   },
   {
     id: "drone-first-responder-program",
+    featured: true,
     title: "Sheriff’s Office real-time operations and drone program",
     summary: "A demonstration review of a budget request for a real-time operations center and drone-as-first-responder capability.",
     whyItMatters: "The proposal combines a multimillion-dollar operating request with technology capable of collecting location and visual information.",
@@ -159,6 +161,12 @@ export const loudounAgendaItems: AgendaItem[] = [
       { role: "Applicant or vendor", name: "Fairfield Residential", detail: "Dulles Plaza" },
       { role: "Applicant or vendor", name: "Wellington Development Partners and Fellowship Square Foundation", detail: "Dogwood Farm Station Apartments" },
       { role: "Public-comment contact", name: "Clerk of the Board", url: boardInputUrl },
+    ],
+    contacts: [
+      { id: "voting-body", roleLabel: "Voting body", organization: "Loudoun County Board of Supervisors", website: boardUrl },
+      { id: "responsible-department", roleLabel: "Responsible department", organization: "Department of Housing and Community Development", website: housingDepartmentUrl },
+      { id: "public-input", roleLabel: "Public input", organization: "Loudoun County Board of Supervisors", website: boardInputUrl },
+      { id: "district-representative", roleLabel: "District representation", organization: "Loudoun County Board of Supervisors", district: "Select your district above or use the official Board page", website: boardUrl },
     ],
     participationOptions: ["Review the February 18, 2026 Board item and complete loan documents.", "Ask Housing and Community Development for project locations, funding controls, monitoring plans, and construction milestones.", "Provide input to the Board through an official public-input channel if related implementation decisions return for action."],
     demonstration: true,

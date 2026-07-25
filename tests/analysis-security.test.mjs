@@ -3,6 +3,7 @@ import test from "node:test";
 import { analysisRequestSchema, isOversizedSource } from "../lib/analysis-request.ts";
 import { publicBriefSchema } from "../lib/brief.ts";
 import { InMemoryRateLimiter } from "../lib/rate-limit.ts";
+import { normalizeMonthDateFormatting } from "../lib/date-format.ts";
 
 const validRequest = {
   text: "A public body will consider this agenda item at a future meeting. This sentence supplies enough source text.",
@@ -31,4 +32,10 @@ test("rate limiter rejects the sixth request in ten minutes", () => {
 
 test("malformed model output is rejected by the response schema", () => {
   assert.equal(publicBriefSchema.safeParse({ plainLanguageSummary: "Partial arbitrary output" }).success, false);
+});
+
+test("generated month and day punctuation is normalized without changing other text", () => {
+  assert.equal(normalizeMonthDateFormatting("March: 18, 2025: Board action"), "March 18, 2025: Board action");
+  assert.equal(normalizeMonthDateFormatting("February: 12, 2025"), "February 12, 2025");
+  assert.equal(normalizeMonthDateFormatting("The source quotes March: 18 as written"), "The source quotes March: 18 as written");
 });

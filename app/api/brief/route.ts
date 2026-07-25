@@ -4,6 +4,7 @@ import { z } from "zod";
 import { publicBriefJsonSchema, publicBriefSchema, type PublicBrief } from "@/lib/brief";
 import { analysisRequestSchema, isOversizedSource, MAX_REQUEST_BYTES } from "@/lib/analysis-request";
 import { InMemoryRateLimiter } from "@/lib/rate-limit";
+import { normalizeMonthDateFormatting } from "@/lib/date-format";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -94,8 +95,8 @@ export async function POST(request: Request) {
     });
     const brief = await generateAndValidateBrief(openai, parsedRequest.data);
 
-    brief.importantDates = brief.importantDates.map(normalizeDateLabel);
-    brief.documentContext.meetingOrDecisionDate = normalizeDateLabel(brief.documentContext.meetingOrDecisionDate);
+    brief.importantDates = brief.importantDates.map(normalizeMonthDateFormatting);
+    brief.documentContext.meetingOrDecisionDate = normalizeMonthDateFormatting(brief.documentContext.meetingOrDecisionDate);
 
     if (concernPrioritizesMissingInformation(parsedRequest.data.concern, brief.concernFocus.mostRelevantSection)) {
       brief.concernFocus = {
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
 
     return jsonNoStore(brief, 200);
   } catch (error) {
+    logSafeProviderError(error);
     if (error instanceof OpenAI.APIConnectionTimeoutError) {
       return jsonNoStore(
         { error: "The AI provider did not return a complete brief in time. Please try again." },
@@ -117,6 +119,22 @@ export async function POST(request: Request) {
       : "We could not generate a brief right now. Please try again.";
     return jsonNoStore({ error: message }, 500);
   }
+}
+
+function logSafeProviderError(error: unknown) {
+  if (error instanceof OpenAI.APIError) {
+    console.error("PublicBrief analysis request failed", {
+      name: error.name,
+      status: error.status,
+      code: error.code,
+      type: error.type,
+    });
+    return;
+  }
+
+  console.error("PublicBrief analysis request failed", {
+    name: error instanceof Error ? error.name : "UnknownError",
+  });
 }
 
 async function generateAndValidateBrief(
@@ -144,10 +162,25 @@ async function generateAndValidateBrief(
       },
     });
 
+    if (!response.output_text) {
+      console.error("PublicBrief model returned no structured text", {
+        status: response.status,
+        incompleteReason: response.incomplete_details?.reason,
+        outputTypes: response.output.map((item) => item.type),
+      });
+      if (attempt === 1) throw new InvalidModelResponseError();
+      continue;
+    }
+
     try {
-      if (!response.output_text) throw new InvalidModelResponseError();
       return publicBriefSchema.parse(JSON.parse(response.output_text));
-    } catch {
+    } catch (error) {
+      console.error("PublicBrief model response validation failed", {
+        kind: error instanceof z.ZodError ? "schema" : "json",
+        issues: error instanceof z.ZodError
+          ? error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code }))
+          : undefined,
+      });
       if (attempt === 1) throw new InvalidModelResponseError();
     }
   }
@@ -188,13 +221,4 @@ function concernPrioritizesMissingInformation(
   ];
 
   return concernTerms.some((pattern) => pattern.test(concern));
-}
-
-function normalizeDateLabel(value: string) {
-  const month = "January|February|March|April|May|June|July|August|September|October|November|December";
-  const match = value.match(new RegExp(`^(${month} \\d{1,2}, \\d{4})(?:\\s*[:—–-]\\s*)?(.*)$`, "i"));
-  if (!match) return value;
-
-  const [, date, event] = match;
-  return `${date}: ${event || "Date listed in the provided text"}`;
 }
