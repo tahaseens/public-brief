@@ -32,9 +32,10 @@ The prototype intentionally has no accounts, authentication, database, scheduled
 - Agenda detail views with status, dates, impacts, missing information, questions, participation routes, and source evidence
 - Strict JSON Schema output plus Zod validation for AI responses
 - An At a glance summary assembled from the existing structured result
+- A proposal-details section focused on location, affected people, funding administration, and implementation timeline
 - Short source excerpts beside significant findings and in a complete evidence section
 - Explicit labels for documented facts, potential implications, and missing information
-- A send-ready, neutral public-comment email draft
+- An Action center combining hearing questions with a visible, send-ready public-comment email draft
 - Copy controls for the complete brief and comment draft
 - Responsive layouts and visible loading, empty, success, and error states
 
@@ -60,7 +61,7 @@ The document analyzer uses the following safeguards:
 - **Request validation:** Zod rejects unknown fields, malformed requests, source text outside 50–15,000 characters, unsupported perspectives, and concerns longer than 500 characters.
 - **Response validation:** the model must return strict structured JSON. Zod validates every field before the browser receives it. One format-repair attempt is allowed; a second invalid response produces a controlled error.
 - **Prompt-injection defense:** pasted text is delimited as an untrusted source document. The model is told to ignore instructions inside it and receives no tools, browsing, email, or external-action capability.
-- **Cost controls:** each server instance applies an in-memory limit of approximately five requests per IP per ten minutes, a 35-second model timeout, low reasoning effort for this structured extraction task, and a 4,000-token output limit.
+- **Cost controls:** each server instance applies an in-memory limit of approximately five requests per IP per ten minutes, a 60-second hard timeout, no reasoning overhead for this extraction task, low output verbosity, and a 4,000-token output limit.
 - **Safe rendering:** model output is rendered as React text, never arbitrary HTML. Model-generated URLs are not made automatically clickable; actionable contact links come from curated application data only.
 - **Grounding:** missing values use `Not specified in the provided text`; documented facts are separated from potential implications; significant findings can include short, exact source excerpts.
 - **Verification:** the interface reminds users to verify dates, procedures, decision details, contacts, and representatives through the issuing government body.
@@ -101,12 +102,12 @@ Create `.env.local` in the repository root:
 
 ```dotenv
 OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-5.6
+OPENAI_MODEL=gpt-5.6-terra
 SITE_URL=http://localhost:3000
 ```
 
 - `OPENAI_API_KEY` is required only for **Analyze a Document**. Create one in the [OpenAI API key dashboard](https://platform.openai.com/api-keys).
-- `OPENAI_MODEL` is optional and defaults to `gpt-5.6`.
+- `OPENAI_MODEL` is optional and defaults to `gpt-5.6-terra`, which balances quality, latency, and cost for structured civic-document extraction.
 - `SITE_URL` is optional locally. Set it to the production origin, such as `https://your-project.vercel.app`, so social-card URLs are absolute.
 
 Never expose either variable with a `NEXT_PUBLIC_` prefix, paste a secret into client code, or commit `.env.local`.

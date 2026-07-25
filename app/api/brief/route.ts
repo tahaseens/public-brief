@@ -6,10 +6,11 @@ import { analysisRequestSchema, isOversizedSource, MAX_REQUEST_BYTES } from "@/l
 import { InMemoryRateLimiter } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const MODEL_TIMEOUT_MS = 35_000;
+const MODEL_TIMEOUT_MS = 55_000;
 const MODEL_OUTPUT_TOKENS = 4_000;
 const NOT_SPECIFIED = "Not specified in the provided text";
 
@@ -33,8 +34,9 @@ Hard requirements:
 - In contacts, return up to three government contacts only when explicitly stated in the source. Use null for missing fields. Return an empty array when no contact is supported. Contact values are source evidence, not verified directory data.
 - Format every complete date in importantDates and documentContext.meetingOrDecisionDate as "Month Day, Year: event or deadline". Never infer missing date parts or mistake a publication date for a meeting date.
 - perspectiveSummary must explain, in no more than 55 words, what the documented facts or cautious implications mean for the selected perspective. If no distinct effect is supported, say that the provided text does not identify one.
-- In evidenceFindings, return up to three important findings for each requested section. evidence must be a short exact excerpt of no more than 20 words from the source or null. Use status "direct" only for directly stated facts, "inferred" only for cautious implications, and "not-specified" for missing information. Never put a paraphrase in evidence.
-- In evidenceFromSource, provide up to six short exact excerpts, each no more than 20 words. Never fabricate or paraphrase an excerpt.
+- proposalLocations must extract up to four exact locations, sites, parcels, districts, or affected areas. If none are supported, return an array containing only "${NOT_SPECIFIED}".
+- Make affectedGroups specific about named households, income or eligibility bands, businesses, neighborhoods, or institutions. Make financialOrRevenueConsiderations specific about amounts, funding sources, administrators, release conditions, contracts, and oversight. Make importantDates cover the documented decision and implementation timeline. Preserve useful quantities, thresholds, project names, responsible entities, and durations without inventing them.
+- In evidenceFromSource, return no more than eight total findings across all sections and no more than two for one section. evidence must be a short exact excerpt of no more than 20 words from the source or null. Use status "direct" only for directly stated facts, "inferred" only for cautious implications, and "not-specified" for missing information. Never fabricate an excerpt or put a paraphrase in evidence.
 - Keep the plain-language summary under 90 words; documented-fact lists to four items; potential-implication lists to two items; dates to four; entities to six; participation options to four; missing details and questions to five each.
 - Do not recommend a political position. Do not provide legal advice. Use accessible plain language.
 - If a primary concern is provided, concernFocus must identify the most useful section and explain why in one short source-grounded sentence. Concerns about money, revenue, privacy, surveillance, community, or infrastructure must select "missingInformation" because unanswered details deserve review. If no concern is provided, use "none" and "No primary concern was provided."
@@ -106,7 +108,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof OpenAI.APIConnectionTimeoutError) {
       return jsonNoStore(
-        { error: "The analysis took too long to finish. Please try again with a shorter excerpt." },
+        { error: "The AI provider did not return a complete brief in time. Please try again." },
         504,
       );
     }
@@ -126,12 +128,13 @@ async function generateAndValidateBrief(
       ? "\n\nFORMAT REPAIR: The prior attempt was invalid. Return one complete JSON object matching every required schema field."
       : "";
     const response = await openai.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.6",
+      model: process.env.OPENAI_MODEL || "gpt-5.6-terra",
       instructions: `${instructions}${repairInstruction}`,
       input: `Reader perspective: ${input.perspective}\nPrimary concern: ${input.concern || "Not provided"}\n\n<source_document>\n${input.text}\n</source_document>`,
       max_output_tokens: MODEL_OUTPUT_TOKENS,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "none" },
       text: {
+        verbosity: "low",
         format: {
           type: "json_schema",
           name: "public_brief",

@@ -3,19 +3,19 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "PublicBrief DMV | Understand local decisions before they are final",
+  title: "PublicBrief DMV | Understanding public decisions",
   description:
     "Explore source-linked local agenda items or turn a public notice into a clear, evidence-grounded brief.",
   openGraph: {
     title: "PublicBrief DMV",
-    description: "Local decisions, explained before they are final.",
+    description: "Local government decisions before the vote",
     type: "website",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "PublicBrief DMV" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "PublicBrief DMV",
-    description: "Local decisions, explained before they are final.",
+    description: "Local government decisions before the vote",
     images: ["/og.png"],
   },
 };

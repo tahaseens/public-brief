@@ -5,7 +5,17 @@ const detailSchema = z.object({
   possibleImplications: z.array(z.string()).max(2),
 });
 
+const evidenceSectionKeys = [
+  "proposedAction",
+  "financialOrRevenueConsiderations",
+  "privacyOrSurveillanceConsiderations",
+  "communityOrInfrastructureConsiderations",
+  "importantDates",
+  "publicParticipationOptions",
+] as const;
+
 const evidenceFindingSchema = z.object({
+  section: z.enum(evidenceSectionKeys),
   finding: z.string(),
   evidence: z.string().nullable(),
   evidenceStatus: z.enum(["direct", "inferred", "not-specified"]),
@@ -48,6 +58,7 @@ export const publicBriefSchema = z.object({
   plainLanguageSummary: z.string(),
   perspectiveSummary: z.string(),
   proposedAction: detailSchema,
+  proposalLocations: z.array(z.string()).max(4),
   affectedGroups: detailSchema,
   financialOrRevenueConsiderations: detailSchema,
   privacyOrSurveillanceConsiderations: detailSchema,
@@ -67,18 +78,7 @@ export const publicBriefSchema = z.object({
     mostRelevantSection: z.enum([...sectionKeys, "none"]),
     explanation: z.string(),
   }),
-  evidenceFromSource: z.array(z.object({
-    excerpt: z.string(),
-    supports: z.string(),
-  })).max(6),
-  evidenceFindings: z.object({
-    proposedAction: z.array(evidenceFindingSchema).max(3),
-    financialOrRevenueConsiderations: z.array(evidenceFindingSchema).max(3),
-    privacyOrSurveillanceConsiderations: z.array(evidenceFindingSchema).max(3),
-    communityOrInfrastructureConsiderations: z.array(evidenceFindingSchema).max(3),
-    importantDates: z.array(evidenceFindingSchema).max(3),
-    publicParticipationOptions: z.array(evidenceFindingSchema).max(3),
-  }),
+  evidenceFromSource: z.array(evidenceFindingSchema).max(8),
   publicCommentDraft: z.string(),
 });
 
@@ -88,11 +88,11 @@ export const publicBriefJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "documentContext", "plainLanguageSummary", "perspectiveSummary", "proposedAction", "affectedGroups",
+    "documentContext", "plainLanguageSummary", "perspectiveSummary", "proposedAction", "proposalLocations", "affectedGroups",
     "financialOrRevenueConsiderations", "privacyOrSurveillanceConsiderations",
     "communityOrInfrastructureConsiderations", "importantDates", "decisionMakingBody",
     "responsibleEntities", "contacts", "publicParticipationOptions", "missingInformation",
-    "questionsToAsk", "concernFocus", "evidenceFromSource", "evidenceFindings", "publicCommentDraft"
+    "questionsToAsk", "concernFocus", "evidenceFromSource", "publicCommentDraft"
   ],
   properties: {
     documentContext: {
@@ -109,6 +109,7 @@ export const publicBriefJsonSchema = {
     plainLanguageSummary: { type: "string" },
     perspectiveSummary: { type: "string" },
     proposedAction: detailJsonSchema(),
+    proposalLocations: stringArray(),
     affectedGroups: detailJsonSchema(),
     financialOrRevenueConsiderations: detailJsonSchema(),
     privacyOrSurveillanceConsiderations: detailJsonSchema(),
@@ -145,32 +146,8 @@ export const publicBriefJsonSchema = {
       },
     },
     evidenceFromSource: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["excerpt", "supports"],
-        properties: {
-          excerpt: { type: "string" },
-          supports: { type: "string" },
-        },
-      },
-    },
-    evidenceFindings: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "proposedAction", "financialOrRevenueConsiderations", "privacyOrSurveillanceConsiderations",
-        "communityOrInfrastructureConsiderations", "importantDates", "publicParticipationOptions",
-      ],
-      properties: {
-        proposedAction: evidenceFindingArray(),
-        financialOrRevenueConsiderations: evidenceFindingArray(),
-        privacyOrSurveillanceConsiderations: evidenceFindingArray(),
-        communityOrInfrastructureConsiderations: evidenceFindingArray(),
-        importantDates: evidenceFindingArray(),
-        publicParticipationOptions: evidenceFindingArray(),
-      },
+      ...evidenceFindingArray(),
+      maxItems: 8,
     },
     publicCommentDraft: { type: "string" },
   },
@@ -198,8 +175,9 @@ function evidenceFindingArray() {
     items: {
       type: "object",
       additionalProperties: false,
-      required: ["finding", "evidence", "evidenceStatus"],
+      required: ["section", "finding", "evidence", "evidenceStatus"],
       properties: {
+        section: { type: "string", enum: evidenceSectionKeys },
         finding: { type: "string" },
         evidence: { type: ["string", "null"] },
         evidenceStatus: { type: "string", enum: ["direct", "inferred", "not-specified"] },

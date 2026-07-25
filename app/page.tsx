@@ -4,18 +4,30 @@ import { FormEvent, KeyboardEvent, useMemo, useRef, useState } from "react";
 import type { PublicBrief } from "@/lib/brief";
 import { LocalityDashboard } from "@/components/locality-dashboard";
 
-const SAMPLE_NOTICE = `LOUDOUN COUNTY, VIRGINIA — DATA CENTER STANDARDS & LOCATIONS
-ADAPTED FROM AN OFFICIAL COUNTY PROJECT PAGE FOR DEMONSTRATION
+const SAMPLE_NOTICE = `RESOLUTION OF THE BOARD OF SUPERVISORS OF LOUDOUN COUNTY, VIRGINIA, ADOPTING GRANDFATHERING RULES FOR ZOAM-2024-0001, DATA CENTER STANDARDS AND LOCATIONS, PHASE I
 
-Source: https://www.loudoun.gov/5990/Data-Center-Standards-Locations
+SOURCE-GROUNDED EXCERPT ADAPTED FOR DEMONSTRATION
+This is an adapted excerpt of an adopted resolution, not notice of a pending vote.
 
-The Loudoun County Board of Supervisors began a project in February 2024 to review policies and standards for data centers and electrical substations. In July 2024, the Board approved a plan dividing the work into two phases.
+Official resolution: https://va-loudouncounty.civicplus.com/DocumentCenter/View/215835
+Official project page: https://www.loudoun.gov/6221/Phase-1-Project-Plan-for-Data-Center-Sta
 
-Phase 1 was approved in March 2025. It changed parts of the Comprehensive Plan and Zoning Ordinance so that data centers in some locations would require conditional or Special Exception approval instead of being permitted by right.
+Current status and decision
+On March 18, 2025, the Loudoun County Board of Supervisors adopted ZOAM-2024-0001 and this related grandfathering resolution. The zoning amendment requires Special Exception approval for data center uses in the Industrial Park, General Industry, and Mineral Resources-Heavy Industry zoning districts. The resolution establishes when certain applications already in process may continue without obtaining that new Special Exception approval.
 
-Phase 2 is underway and concerns possible policy guidance and use-specific zoning standards for data centers and utility substations. The county project page does not identify a final Phase 2 vote date, final standards, projected infrastructure costs, expected fiscal effects, or quantified power and water demand.
+Applications covered
+A legislative or administrative application officially accepted for processing by Loudoun County on or before February 12, 2025 may qualify for grandfathered treatment under the resolution. A qualifying legislative application may include a zoning map amendment, zoning concept plan amendment, or zoning conversion application involving a proposed data center use. A qualifying administrative application may include a site plan, site plan amendment, construction plan and profile, or subdivision application involving a proposed data center use.
 
-The county states that residents may submit comments to Planning and Zoning staff through the project page. Comments are typically incorporated into staff reports before Planning Commission and Board of Supervisors public hearings. Residents may also provide input directly to the Board using the county's public-input process.`;
+Retaining grandfathered status
+An application must avoid a substantial modification after February 12, 2025 and the applicant must diligently pursue approval. The resolution describes substantial modifications separately for legislative and administrative applications. Examples include certain increases in proposed data center floor area or building height, reductions in setbacks, changes or additions to proposed uses, or changes to the land area covered by the application. A modification requested by County staff in an official referral or review memorandum is not treated as a substantial modification under the applicable administrative rule.
+
+The resolution states that an applicant may lose grandfathered status for failing to respond to a County request for resubmission or supporting material within six months, missing required public-hearing notices or meeting submission deadlines, withdrawing an application, or allowing it to become inactive. An administrative application may also lose its status if compliant application materials are not submitted within three years after the resolution's effective date. The assigned project manager is to provide written notice when an application loses grandfathered status.
+
+What the resolution does not identify
+The resolution does not list every application that qualifies, the address or parcel location of each affected project, the households or businesses near each site, the projected number or size of resulting data centers, expected tax revenue, public infrastructure costs, utility demand, environmental effects, privacy or surveillance practices, or a project-by-project construction timeline. Those details would need to be verified in the individual land-development application and official County records.
+
+Public participation
+The resolution records that the Planning Commission held a public hearing on September 24, 2024 and work sessions before forwarding a recommendation on December 12, 2024. The Board of Supervisors held a public hearing on February 12, 2025 and considered the amendments at meetings on March 4 and March 18, 2025. This excerpt does not specify a future hearing, comment deadline, or participation procedure for the adopted grandfathering resolution.`;
 
 const perspectives = ["Resident", "Parent", "Small-business owner", "Community organization", "Other"] as const;
 const NOT_SPECIFIED = "Not specified in the provided text";
@@ -48,7 +60,6 @@ const secondarySectionKeys = [
   "privacyOrSurveillanceConsiderations",
   "communityOrInfrastructureConsiderations",
 ] as const;
-const supportingSectionKeys = ["missingInformation", "questionsToAsk"] as const;
 
 export default function Home() {
   const [mode, setMode] = useState<"scan" | "analyze">("scan");
@@ -150,7 +161,7 @@ function DocumentAnalyzer() {
   function loadSample() {
     setText(SAMPLE_NOTICE);
     setPerspective("Resident");
-    setConcern("Land use, infrastructure capacity, and public participation");
+    setConcern("Which data center applications qualify, where they are located, and what impacts remain undisclosed");
     setSampleLoaded(true);
     setBrief(null);
     setError("");
@@ -224,7 +235,7 @@ function DocumentAnalyzer() {
       {brief && status === "success" && (
         <section className="results" ref={resultsRef} aria-labelledby="results-title">
           <div className="results-header">
-            <div><div><p className="result-kicker">Generated from the text you provided</p><h2 id="results-title">What the notice says</h2></div></div>
+            <div><p className="result-kicker">Generated from the text you provided</p><h2 id="results-title">What the notice says</h2></div>
             <button className="copy-button" onClick={() => copy(fullBrief, "brief")}>{copied === "brief" ? "Copied" : "Copy complete brief"}</button>
           </div>
 
@@ -247,53 +258,88 @@ function DocumentAnalyzer() {
           )}
 
           <div className="card-grid">
-            <ResultCard
-              title={sectionByKey.proposedAction.title}
-              hint={sectionByKey.proposedAction.hint}
-              value={brief.proposedAction}
-              evidence={brief.evidenceFindings.proposedAction}
-              index={1}
-              relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === "proposedAction"}
-            />
-            <PerspectiveCard perspective={submittedPerspective} summary={brief.perspectiveSummary} index={2} />
+            <ProposalDetailsCard brief={brief} index={1} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === "proposedAction"} />
             <DecisionRolesCard
               brief={brief}
-              index={3}
+              index={2}
               relevant={submittedConcern !== "" && ["decisionMakingBody", "responsibleEntities"].includes(brief.concernFocus.mostRelevantSection)}
             />
             {primarySectionKeys.slice(1).map((key, index) => (
-              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={brief.evidenceFindings[key]} index={index + 4} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={evidenceForSection(brief, key)} index={index + 3} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
+            <PerspectiveCard perspective={submittedPerspective} summary={brief.perspectiveSummary} index={5} />
             {secondarySectionKeys.map((key, index) => (
-              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={key === "affectedGroups" ? undefined : brief.evidenceFindings[key]} index={index + 6} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={key === "affectedGroups" ? undefined : evidenceForSection(brief, key)} index={index + 6} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
-            {supportingSectionKeys.map((key, index) => (
-              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} index={index + 10} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
-            ))}
+            <ResultCard title={sectionByKey.missingInformation.title} hint={sectionByKey.missingInformation.hint} value={brief.missingInformation} index={10} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === "missingInformation"} />
           </div>
+
+          <ActionCenter brief={brief} copied={copied === "comment"} onCopy={() => copy(brief.publicCommentDraft, "comment")} />
 
           <section className="analyzer-evidence">
             <div><p className="result-kicker">Source grounding</p><h3>Evidence from the source</h3><p>Short excerpts that support the analysis above.</p></div>
             <div className="evidence-list">
               {brief.evidenceFromSource.map((evidence, index) => (
-                <div key={`${evidence.excerpt}-${index}`}><blockquote>“{evidence.excerpt}”</blockquote><span>Supports: {evidence.supports}</span></div>
+                <div key={`${evidence.finding}-${index}`}><span className={`evidence-status ${evidence.evidenceStatus}`}>{evidenceStatusLabel(evidence.evidenceStatus)}</span><p>{evidence.finding}</p>{evidence.evidence && <blockquote>“{evidence.evidence}”</blockquote>}</div>
               ))}
             </div>
           </section>
-
-          <details className="comment-card">
-            <summary><span><span className="card-index">EMAIL-READY</span><strong>Public-comment draft</strong><small><span className="draft-show">Show</span><span className="draft-hide">Hide</span> draft</small></span></summary>
-            <div className="comment-card-body">
-              <div><h3>Public-comment draft</h3><p className="card-hint">Add your name, verify the details, and send it to the issuing body.</p></div>
-              <div className="comment-copy">{brief.publicCommentDraft}</div>
-              <button className="copy-button dark" type="button" onClick={() => copy(brief.publicCommentDraft, "comment")}>{copied === "comment" ? "Copied" : "Copy email-ready comment"}</button>
-            </div>
-          </details>
           <span className="sr-only" role="status" aria-live="polite">{copied === "brief" ? "Complete brief copied." : copied === "comment" ? "Public-comment draft copied." : ""}</span>
         </section>
       )}
 
     </div>
+  );
+}
+
+function ProposalDetailsCard({ brief, index, relevant }: { brief: PublicBrief; index: number; relevant: boolean }) {
+  const details = [
+    { title: "Where", hint: "Location, site, district, or affected area", items: brief.proposalLocations },
+    { title: "Who", hint: "People, households, businesses, or eligibility groups", items: brief.affectedGroups.documentedFacts },
+    { title: "How money is managed", hint: "Funding source, administrator, contract, or oversight", items: brief.financialOrRevenueConsiderations.documentedFacts },
+    { title: "Timeline", hint: "Hearings, approvals, implementation, and duration", items: brief.importantDates },
+  ];
+
+  return (
+    <article className={`result-card proposal-details-card ${relevant ? "most-relevant" : ""}`}>
+      <div className="card-topline"><p className="card-index">{String(index).padStart(2, "0")}</p>{relevant && <span className="relevance-label">Most relevant to your concern</span>}</div>
+      <h3>Proposal details</h3>
+      <p className="card-hint">The concrete scope of what is being considered</p>
+      <div className="proposal-action"><h4>Decision being considered</h4><Value value={brief.proposedAction} /></div>
+      <div className="proposal-facts-grid">
+        {details.map((detail) => (
+          <section key={detail.title}>
+            <h4>{detail.title}</h4>
+            <p>{detail.hint}</p>
+            <Value value={detail.items} />
+          </section>
+        ))}
+      </div>
+      {evidenceForSection(brief, "proposedAction").some((finding) => finding.evidence) && <EvidenceDetails findings={evidenceForSection(brief, "proposedAction")} />}
+    </article>
+  );
+}
+
+function ActionCenter({ brief, copied, onCopy }: { brief: PublicBrief; copied: boolean; onCopy: () => void }) {
+  return (
+    <section className="action-center" aria-labelledby="action-center-title">
+      <div className="action-center-heading">
+        <div><p className="result-kicker">Action</p><h3 id="action-center-title">Turn the brief into action</h3></div>
+        <p>Use the unresolved questions at a hearing or send a source-grounded public comment. Verify the meeting process before participating.</p>
+      </div>
+      <div className="action-center-grid">
+        <section className="hearing-questions" aria-labelledby="hearing-questions-title">
+          <p className="action-label">At a hearing or meeting</p>
+          <h4 id="hearing-questions-title">Questions to ask</h4>
+          <ol>{brief.questionsToAsk.map((question, index) => <li key={`${question}-${index}`}>{question}</li>)}</ol>
+        </section>
+        <section className="email-action" aria-labelledby="email-action-title">
+          <div className="email-action-heading"><div><p className="action-label">By email</p><h4 id="email-action-title">Public-comment draft</h4></div><button className="copy-button" type="button" onClick={onCopy}>{copied ? "Copied" : "Copy email-ready comment"}</button></div>
+          <p className="action-note">Add your name, verify the details, and send it through the issuing body’s official channel.</p>
+          <div className="comment-copy">{brief.publicCommentDraft}</div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -325,7 +371,7 @@ function AtAGlance({ brief }: { brief: PublicBrief }) {
   );
 }
 
-function ResultCard({ title, hint, value, evidence, index, relevant }: { title: string; hint: string; value: SectionValue; evidence?: PublicBrief["evidenceFindings"][keyof PublicBrief["evidenceFindings"]]; index: number; relevant?: boolean }) {
+function ResultCard({ title, hint, value, evidence, index, relevant }: { title: string; hint: string; value: SectionValue; evidence?: PublicBrief["evidenceFromSource"]; index: number; relevant?: boolean }) {
   return (
     <article className={`result-card ${relevant ? "most-relevant" : ""}`}>
       <div className="card-topline"><p className="card-index">{String(index).padStart(2, "0")}</p>{relevant && <span className="relevance-label">Most relevant to your concern</span>}</div>
@@ -372,7 +418,7 @@ function PerspectiveCard({ perspective, summary, index }: { perspective: string;
   );
 }
 
-function EvidenceDetails({ findings }: { findings: PublicBrief["evidenceFindings"][keyof PublicBrief["evidenceFindings"]] }) {
+function EvidenceDetails({ findings }: { findings: PublicBrief["evidenceFromSource"] }) {
   const visibleFindings = findings.filter((finding) => finding.evidence);
   return (
     <details className="inline-evidence">
@@ -412,6 +458,10 @@ function evidenceStatusLabel(status: "direct" | "inferred" | "not-specified") {
   return "Not specified";
 }
 
+function evidenceForSection(brief: PublicBrief, section: PublicBrief["evidenceFromSource"][number]["section"]) {
+  return brief.evidenceFromSource.filter((finding) => finding.section === section);
+}
+
 function briefToText(brief: PublicBrief) {
   const lines = [
     "PUBLICBRIEF",
@@ -427,6 +477,12 @@ function briefToText(brief: PublicBrief) {
     "",
     "PERSPECTIVE SUMMARY",
     brief.perspectiveSummary,
+    "",
+    "PROPOSAL DETAILS",
+    "Where:", ...brief.proposalLocations.map((item) => `• ${item}`),
+    "Who:", ...brief.affectedGroups.documentedFacts.map((item) => `• ${item}`),
+    "How money is managed:", ...brief.financialOrRevenueConsiderations.documentedFacts.map((item) => `• ${item}`),
+    "Timeline:", ...brief.importantDates.map((item) => `• ${item}`),
   ];
   for (const section of copySections.slice(1)) {
     const value = brief[section.key];
@@ -451,7 +507,7 @@ function briefToText(brief: PublicBrief) {
     lines.push("Contact information is not yet available for this item. Check the issuing government body’s official meeting page or staff report.");
   }
   if (brief.concernFocus.mostRelevantSection !== "none") lines.push("", "CONCERN FOCUS", brief.concernFocus.explanation);
-  lines.push("", "EVIDENCE FROM THE SOURCE", ...brief.evidenceFromSource.map((evidence) => `• “${evidence.excerpt}” — ${evidence.supports}`));
+  lines.push("", "EVIDENCE FROM THE SOURCE", ...brief.evidenceFromSource.map((evidence) => `• ${evidence.finding}${evidence.evidence ? ` — “${evidence.evidence}”` : ""}`));
   lines.push("", "PUBLIC-COMMENT DRAFT", brief.publicCommentDraft, "", "Verify details with the issuing government body. Not legal advice.");
   return lines.join("\n");
 }
