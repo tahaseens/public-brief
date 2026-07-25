@@ -14,8 +14,9 @@ Written comments received by the Planning Department by 4:00 p.m. on September 1
 const perspectives = ["Resident", "Parent", "Small-business owner", "Community organization", "Other"] as const;
 
 type Detail = PublicBrief["proposedAction"];
+type SectionKey = Exclude<PublicBrief["concernFocus"]["mostRelevantSection"], "none">;
 
-const sections: Array<{ key: keyof PublicBrief; title: string; hint: string }> = [
+const sections: Array<{ key: SectionKey; title: string; hint: string }> = [
   { key: "plainLanguageSummary", title: "Plain-language summary", hint: "The essentials, without the jargon" },
   { key: "proposedAction", title: "Proposed action", hint: "What the government body may do" },
   { key: "affectedGroups", title: "Who may be affected", hint: "People and groups named or reasonably implicated" },
@@ -35,6 +36,7 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"brief" | "comment" | null>(null);
+  const [submittedConcern, setSubmittedConcern] = useState("");
   const resultsRef = useRef<HTMLElement>(null);
 
   const charCount = text.length;
@@ -60,6 +62,7 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The brief could not be generated.");
       setBrief(data);
+      setSubmittedConcern(concern.trim());
       setStatus("success");
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (caught) {
@@ -88,22 +91,19 @@ export default function Home() {
           <span className="brand-mark" aria-hidden="true">PB</span>
           <span>PublicBrief</span>
         </a>
-        <span className="header-note">For a more informed public</span>
+        <span className="header-note">A civic information project</span>
       </header>
 
       <section className="hero" id="top">
-        <div className="eyebrow"><span /> Civic information, made legible</div>
-        <h1>Public decisions.<br /><em>Plainly understood.</em></h1>
-        <p className="hero-copy">Paste a local-government agenda item, notice, proposal, or policy. Get a source-grounded brief focused on what matters to you.</p>
-        <div className="trust-row">
-          <span>Facts stay facts</span><span>Gaps stay visible</span><span>No political persuasion</span>
-        </div>
+        <p className="eyebrow">Local decisions are often buried in lengthy agendas and technical documents.</p>
+        <h1>Understand local decisions before they are finalized.</h1>
+        <p className="hero-copy">PublicBrief makes government documents easier to understand, highlights potential community implications, and helps residents find the information they need to participate.</p>
       </section>
 
       <section className="workspace" aria-labelledby="workspace-title">
         <div className="workspace-heading">
-          <div><span className="step-number">01</span><h2 id="workspace-title">Add the public text</h2></div>
-          <button className="sample-button" type="button" onClick={loadSample}>Load a sample notice <span aria-hidden="true">↘</span></button>
+          <div><h2 id="workspace-title">Add the public text</h2></div>
+          <button className="sample-button" type="button" onClick={loadSample}>Load a sample notice</button>
         </div>
 
         <form onSubmit={submit}>
@@ -131,7 +131,7 @@ export default function Home() {
           {status === "error" && <div className="message error" role="alert"><strong>We hit a snag.</strong> {error}</div>}
 
           <button className="generate-button" type="submit" disabled={status === "loading" || text.trim().length === 0}>
-            {status === "loading" ? <><span className="spinner" /> Reading the public record…</> : <>Generate Public Brief <span aria-hidden="true">→</span></>}
+            {status === "loading" ? <><span className="spinner" /> Reading the public record…</> : <>Generate Public Brief</>}
           </button>
           <p className="privacy-note">Your text is sent to the AI provider to generate this brief. Don’t paste sensitive personal information.</p>
         </form>
@@ -152,22 +152,29 @@ export default function Home() {
       {brief && status === "success" && (
         <section className="results" ref={resultsRef} aria-labelledby="results-title">
           <div className="results-header">
-            <div><span className="step-number">02</span><div><p className="result-kicker">Your generated brief</p><h2 id="results-title">What the notice says</h2></div></div>
+            <div><div><p className="result-kicker">Generated from the text you provided</p><h2 id="results-title">What the notice says</h2></div></div>
             <button className="copy-button" onClick={() => copy(fullBrief, "brief")}>{copied === "brief" ? "Copied" : "Copy complete brief"}</button>
           </div>
 
           <div className="verify-banner"><span aria-hidden="true">!</span><p><strong>Verify before you act.</strong> AI can make mistakes. Confirm dates, requirements, and participation details with the issuing government body.</p></div>
 
+          {submittedConcern && brief.concernFocus.mostRelevantSection !== "none" && (
+            <div className="concern-banner">
+              <p><strong>Your focus:</strong> {submittedConcern}</p>
+              <p>{brief.concernFocus.explanation}</p>
+            </div>
+          )}
+
           <div className="card-grid">
             {sections.map((section, index) => (
-              <ResultCard key={section.key} title={section.title} hint={section.hint} value={brief[section.key]} index={index + 1} featured={index === 0} />
+              <ResultCard key={section.key} title={section.title} hint={section.hint} value={brief[section.key]} index={index + 1} featured={index === 0} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === section.key} />
             ))}
           </div>
 
           <article className="comment-card">
-            <div><p className="card-index">10 / READY TO EDIT</p><h3>Public-comment draft</h3><p className="card-hint">A neutral starting point based only on the notice</p></div>
+            <div><p className="card-index">10 / EMAIL-READY</p><h3>Public-comment draft</h3><p className="card-hint">Add your name, review the details, and send it to the issuing body.</p></div>
             <div className="comment-copy">{brief.publicCommentDraft}</div>
-            <button className="copy-button dark" onClick={() => copy(brief.publicCommentDraft, "comment")}>{copied === "comment" ? "Copied" : "Copy comment draft"}</button>
+            <button className="copy-button dark" onClick={() => copy(brief.publicCommentDraft, "comment")}>{copied === "comment" ? "Copied" : "Copy email-ready comment"}</button>
           </article>
         </section>
       )}
@@ -177,10 +184,10 @@ export default function Home() {
   );
 }
 
-function ResultCard({ title, hint, value, index, featured }: { title: string; hint: string; value: string | string[] | Detail; index: number; featured?: boolean }) {
+function ResultCard({ title, hint, value, index, featured, relevant }: { title: string; hint: string; value: string | string[] | Detail; index: number; featured?: boolean; relevant?: boolean }) {
   return (
-    <article className={`result-card ${featured ? "featured" : ""}`}>
-      <p className="card-index">{String(index).padStart(2, "0")}</p>
+    <article className={`result-card ${featured ? "featured" : ""} ${relevant ? "most-relevant" : ""}`}>
+      <div className="card-topline"><p className="card-index">{String(index).padStart(2, "0")}</p>{relevant && <span className="relevance-label">Most relevant to your concern</span>}</div>
       <h3>{title}</h3><p className="card-hint">{hint}</p>
       <div className="card-content"><Value value={value} /></div>
     </article>
@@ -201,6 +208,7 @@ function briefToText(brief: PublicBrief) {
     if (Array.isArray(value)) lines.push(...value.map((item) => `• ${item}`));
     else if (typeof value === "object") lines.push("Documented facts:", ...value.documentedFacts.map((item) => `• ${item}`), "Possible implications:", ...value.possibleImplications.map((item) => `• ${item}`));
   }
+  if (brief.concernFocus.mostRelevantSection !== "none") lines.push("", "CONCERN FOCUS", brief.concernFocus.explanation);
   lines.push("", "PUBLIC-COMMENT DRAFT", brief.publicCommentDraft, "", "Verify details with the issuing government body. Not legal advice.");
   return lines.join("\n");
 }

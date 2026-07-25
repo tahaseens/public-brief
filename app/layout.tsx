@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PublicBrief — Understand local decisions",
+  title: "PublicBrief: Understand local decisions",
   description: "Turn dense local-government notices into clear, source-grounded public briefs.",
 };
 

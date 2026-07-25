@@ -1,9 +1,21 @@
 import { z } from "zod";
 
 const detailSchema = z.object({
-  documentedFacts: z.array(z.string()),
-  possibleImplications: z.array(z.string()),
+  documentedFacts: z.array(z.string()).max(4),
+  possibleImplications: z.array(z.string()).max(2),
 });
+
+const sectionKeys = [
+  "plainLanguageSummary",
+  "proposedAction",
+  "affectedGroups",
+  "financialOrRevenueConsiderations",
+  "privacyOrSurveillanceConsiderations",
+  "importantDates",
+  "publicParticipationOptions",
+  "missingInformation",
+  "questionsToAsk",
+] as const;
 
 export const publicBriefSchema = z.object({
   plainLanguageSummary: z.string(),
@@ -11,10 +23,14 @@ export const publicBriefSchema = z.object({
   affectedGroups: detailSchema,
   financialOrRevenueConsiderations: detailSchema,
   privacyOrSurveillanceConsiderations: detailSchema,
-  importantDates: z.array(z.string()),
-  publicParticipationOptions: z.array(z.string()),
-  missingInformation: z.array(z.string()),
-  questionsToAsk: z.array(z.string()),
+  importantDates: z.array(z.string()).max(4),
+  publicParticipationOptions: z.array(z.string()).max(4),
+  missingInformation: z.array(z.string()).max(5),
+  questionsToAsk: z.array(z.string()).max(5),
+  concernFocus: z.object({
+    mostRelevantSection: z.enum([...sectionKeys, "none"]),
+    explanation: z.string(),
+  }),
   publicCommentDraft: z.string(),
 });
 
@@ -27,7 +43,7 @@ export const publicBriefJsonSchema = {
     "plainLanguageSummary", "proposedAction", "affectedGroups",
     "financialOrRevenueConsiderations", "privacyOrSurveillanceConsiderations",
     "importantDates", "publicParticipationOptions", "missingInformation",
-    "questionsToAsk", "publicCommentDraft"
+    "questionsToAsk", "concernFocus", "publicCommentDraft"
   ],
   properties: {
     plainLanguageSummary: { type: "string" },
@@ -39,6 +55,15 @@ export const publicBriefJsonSchema = {
     publicParticipationOptions: stringArray(),
     missingInformation: stringArray(),
     questionsToAsk: stringArray(),
+    concernFocus: {
+      type: "object",
+      additionalProperties: false,
+      required: ["mostRelevantSection", "explanation"],
+      properties: {
+        mostRelevantSection: { type: "string", enum: [...sectionKeys, "none"] },
+        explanation: { type: "string" },
+      },
+    },
     publicCommentDraft: { type: "string" },
   },
 } as const;
