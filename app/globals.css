@@ -77,7 +77,6 @@ button { cursor:pointer; }
 .detail-status-row strong { font-size:12px; line-height:1.4; }
 .detail-grid { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line); border-left:1px solid var(--line); }
 .detail-section { min-height:220px; padding:25px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
-.detail-section.important { background:#f2f5e7; box-shadow:inset 0 0 0 2px #aabd71; }
 .detail-section h3,.responsibility-section h3,.analyzer-evidence h3 { margin:0 0 16px; font:400 22px/1.2 Georgia,serif; }
 .detail-section ul { margin:0; padding-left:18px; }
 .detail-section li { margin:8px 0; color:#35423b; font:15px/1.45 Georgia,serif; }

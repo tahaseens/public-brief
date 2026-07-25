@@ -31,7 +31,7 @@ export function LocalityDashboard() {
         <div>
           <p className="section-label">Scan My Locality</p>
           <h2 id="dashboard-title">Decisions worth a closer look</h2>
-          <p>Browse a curated prototype feed for one locality. Items may appear under more than one topic.</p>
+          <p>Browse a curated prototype feed for Loudoun County and a small set of Virginia state examples. Items may appear under more than one topic.</p>
         </div>
         <span className="demo-badge">Demonstration data</span>
       </div>
@@ -65,7 +65,7 @@ export function LocalityDashboard() {
       <div className="dashboard-source-note">
         <div>
           <strong>Official sources, demonstration briefs</strong>
-          <span>Every card is based on linked Loudoun County material. The summaries and pre-decision framing are adapted for product testing, not a live agenda feed.</span>
+          <span>Every card is based on linked Loudoun County or Virginia government material. The summaries and pre-decision framing are adapted for product testing, not a live agenda feed.</span>
         </div>
         <a href="https://www.loudoun.gov/Meetings" target="_blank" rel="noreferrer">Check official meeting materials</a>
       </div>
@@ -156,12 +156,6 @@ function AgendaDetail({
         <DetailSection title="Why this item was flagged">
           <div className="flag-reasons">{item.categories.map((category) => <div key={category}><strong>{category}</strong><p>{item.categoryReasons[category]}</p></div>)}</div>
         </DetailSection>
-        <DetailSection title="Potentially affected groups"><StringList items={item.affectedGroups} /></DetailSection>
-        <DetailSection title="Public money considerations"><StringList items={item.financialConsiderations} /></DetailSection>
-        <DetailSection title="Privacy or surveillance considerations"><StringList items={item.privacyConsiderations} /></DetailSection>
-        <DetailSection title="Community or infrastructure considerations"><StringList items={item.infrastructureConsiderations} /></DetailSection>
-        <DetailSection title="Missing or unclear information" important><StringList items={item.missingInformation} /></DetailSection>
-        <DetailSection title="Questions residents could ask"><StringList items={item.questionsToAsk} /></DetailSection>
       </div>
 
       <section className="responsibility-section">
@@ -177,11 +171,20 @@ function AgendaDetail({
         </div>
       </section>
 
+      <div className="detail-grid">
+        <DetailSection title="Potentially affected groups"><StringList items={item.affectedGroups} /></DetailSection>
+        <DetailSection title="Public money considerations"><StringList items={item.financialConsiderations} /></DetailSection>
+        <DetailSection title="Privacy or surveillance considerations"><StringList items={item.privacyConsiderations} /></DetailSection>
+        <DetailSection title="Community or infrastructure considerations"><StringList items={item.infrastructureConsiderations} /></DetailSection>
+        <DetailSection title="Missing or unclear information"><StringList items={item.missingInformation} /></DetailSection>
+        <DetailSection title="Questions residents could ask"><StringList items={item.questionsToAsk} /></DetailSection>
+      </div>
+
       <div className="detail-grid lower">
         <DetailSection title="Who to contact">
           <ContactList contacts={item.contacts} representative={representative} />
         </DetailSection>
-        <DetailSection title="Public participation options"><StringList items={item.participationOptions} /><a className="inline-source" href="https://www.loudoun.gov/4853/About-Board-of-Supervisors-Meetings" target="_blank" rel="noreferrer">Verify public-input procedures</a></DetailSection>
+        <DetailSection title="Public participation options"><StringList items={item.participationOptions} /><a className="inline-source" href={item.governmentLevel === "State" ? item.sourceUrl : "https://www.loudoun.gov/4853/About-Board-of-Supervisors-Meetings"} target="_blank" rel="noreferrer">{item.governmentLevel === "State" ? "Verify through the official state source" : "Verify public-input procedures"}</a></DetailSection>
       </div>
 
       <section className="evidence-panel">
@@ -195,8 +198,8 @@ function AgendaDetail({
   );
 }
 
-function DetailSection({ title, children, important = false }: { title: string; children: ReactNode; important?: boolean }) {
-  return <section className={`detail-section ${important ? "important" : ""}`}><h3>{title}</h3>{children}</section>;
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="detail-section"><h3>{title}</h3>{children}</section>;
 }
 
 function StringList({ items }: { items: string[] }) {
