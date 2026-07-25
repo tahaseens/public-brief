@@ -2,8 +2,22 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PublicBrief: Understand local decisions",
-  description: "Turn dense local-government notices into clear, source-grounded public briefs.",
+  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
+  title: "PublicBrief DMV | Understand local decisions before they are final",
+  description:
+    "Explore source-linked local agenda items or turn a public notice into a clear, evidence-grounded brief.",
+  openGraph: {
+    title: "PublicBrief DMV",
+    description: "Local decisions, explained before they are final.",
+    type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "PublicBrief DMV" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PublicBrief DMV",
+    description: "Local decisions, explained before they are final.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

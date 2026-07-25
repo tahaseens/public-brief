@@ -18,11 +18,18 @@ Hard requirements:
 - Never invent dates, organizations, contract provisions, policy details, participation methods, or contact information.
 - When a scalar value is unavailable, write exactly "Not specified in the provided text". When a list category has no supported items, return an array containing only that phrase.
 - Keep documented facts separate from possible implications. Label an implication cautiously and include it only when it follows reasonably from a documented fact.
+- Evaluate financial or revenue, privacy or surveillance, and community or infrastructure impacts independently. If the text contains no evidence for one category, use "Not specified in the provided text" rather than forcing a connection.
+- In documentContext, identify the document type, its current procedural status, the meeting or decision date, and the government level only when the source supports them. Do not treat a publication date as a meeting date. Use "Not specified in the provided text" for any unsupported field.
+- Identify the decision-making body only when the source names it. Do not imply that one official controls a collective decision.
+- In responsibleEntities, separate the roles described by the source, such as voting body, committee or commission, sponsoring department, applicant or vendor, district representative, and public-comment contact. Include only named entities and explain the source basis. If none are specified, return one entry using "Not specified in the provided text" for every field.
+- In contacts, return up to three useful government contacts explicitly stated in the source: a district representative, public-comment contact, or responsible department. Never invent a person, title, district, organization, email, phone number, website, or form URL. Use null for any missing contact field. If no contact is supported, return an empty array.
+- Format every complete date in importantDates and documentContext.meetingOrDecisionDate as "Month Day, Year: event or deadline". Do not abbreviate the month. Do not infer a missing month, day, or year; preserve incomplete date wording as supplied.
+- In evidenceFromSource, provide up to 6 short, exact excerpts from the supplied source, each no more than 20 words, and state what result each excerpt supports. Do not paraphrase inside the excerpt field.
 - Do not tell the reader what political position to take. Do not provide legal advice.
 - Use short sentences and accessible plain language. Prefer specific nouns and verbs over civic jargon.
 - Keep the plain-language summary under 90 words.
 - Keep documented-fact lists to 4 items or fewer and possible-implication lists to 2 items or fewer. Each item should usually be one sentence.
-- Return no more than 4 dates, 4 participation options, 5 missing details, and 5 questions. Select the most useful items rather than repeating the source.
+- Return no more than 4 dates, 6 responsible entities, 6 evidence excerpts, 4 participation options, 5 missing details, and 5 questions. Select the most useful items rather than repeating the source.
 - The perspective and primary concern must shape emphasis, but cannot add facts.
 - If a primary concern is provided, set concernFocus.mostRelevantSection to the one result section most useful for that concern and explain the connection in one short sentence grounded in the source. Concerns about money or revenue, privacy or surveillance, or community infrastructure must use "missingInformation" because the unanswered details are the most important result to examine. If no concern is provided, use "none" and "No primary concern was provided."
 - The public-comment draft must be civil, neutral, direct, and sound like an adult resident. Use the word "please" no more than once. Avoid repeated thanks, ceremonial language, generic praise, and claims of personal experience that were not supplied.
@@ -74,7 +81,10 @@ export async function POST(request: Request) {
     if (!response.output_text) throw new Error("The model returned no brief.");
     const brief = publicBriefSchema.parse(JSON.parse(response.output_text));
 
-    if (concernPrioritizesMissingInformation(input.concern)) {
+    brief.importantDates = brief.importantDates.map(normalizeDateLabel);
+    brief.documentContext.meetingOrDecisionDate = normalizeDateLabel(brief.documentContext.meetingOrDecisionDate);
+
+    if (concernPrioritizesMissingInformation(input.concern, brief.concernFocus.mostRelevantSection)) {
       brief.concernFocus = {
         mostRelevantSection: "missingInformation",
         explanation: "The document’s unanswered details are the most useful place to assess this concern.",
@@ -88,7 +98,17 @@ export async function POST(request: Request) {
   }
 }
 
-function concernPrioritizesMissingInformation(concern: string) {
+function concernPrioritizesMissingInformation(
+  concern: string,
+  selectedSection: z.infer<typeof publicBriefSchema>["concernFocus"]["mostRelevantSection"],
+) {
+  const impactSections = new Set([
+    "financialOrRevenueConsiderations",
+    "privacyOrSurveillanceConsiderations",
+    "communityOrInfrastructureConsiderations",
+  ]);
+
+  if (impactSections.has(selectedSection)) return true;
   if (!concern) return false;
 
   const concernTerms = [
@@ -98,4 +118,13 @@ function concernPrioritizesMissingInformation(concern: string) {
   ];
 
   return concernTerms.some((pattern) => pattern.test(concern));
+}
+
+function normalizeDateLabel(value: string) {
+  const month = "January|February|March|April|May|June|July|August|September|October|November|December";
+  const match = value.match(new RegExp(`^(${month} \\d{1,2}, \\d{4})(?:\\s*[:—–-]\\s*)?(.*)$`, "i"));
+  if (!match) return value;
+
+  const [, date, event] = match;
+  return `${date}: ${event || "Date listed in the provided text"}`;
 }
