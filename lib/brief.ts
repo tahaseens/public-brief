@@ -5,6 +5,12 @@ const detailSchema = z.object({
   possibleImplications: z.array(z.string()).max(2),
 });
 
+const evidenceFindingSchema = z.object({
+  finding: z.string(),
+  evidence: z.string().nullable(),
+  evidenceStatus: z.enum(["direct", "inferred", "not-specified"]),
+});
+
 const contactSchema = z.object({
   roleLabel: z.string(),
   name: z.string().nullable(),
@@ -40,6 +46,7 @@ export const publicBriefSchema = z.object({
     decisionLevel: z.string(),
   }),
   plainLanguageSummary: z.string(),
+  perspectiveSummary: z.string(),
   proposedAction: detailSchema,
   affectedGroups: detailSchema,
   financialOrRevenueConsiderations: detailSchema,
@@ -64,6 +71,14 @@ export const publicBriefSchema = z.object({
     excerpt: z.string(),
     supports: z.string(),
   })).max(6),
+  evidenceFindings: z.object({
+    proposedAction: z.array(evidenceFindingSchema).max(3),
+    financialOrRevenueConsiderations: z.array(evidenceFindingSchema).max(3),
+    privacyOrSurveillanceConsiderations: z.array(evidenceFindingSchema).max(3),
+    communityOrInfrastructureConsiderations: z.array(evidenceFindingSchema).max(3),
+    importantDates: z.array(evidenceFindingSchema).max(3),
+    publicParticipationOptions: z.array(evidenceFindingSchema).max(3),
+  }),
   publicCommentDraft: z.string(),
 });
 
@@ -73,11 +88,11 @@ export const publicBriefJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
-    "documentContext", "plainLanguageSummary", "proposedAction", "affectedGroups",
+    "documentContext", "plainLanguageSummary", "perspectiveSummary", "proposedAction", "affectedGroups",
     "financialOrRevenueConsiderations", "privacyOrSurveillanceConsiderations",
     "communityOrInfrastructureConsiderations", "importantDates", "decisionMakingBody",
     "responsibleEntities", "contacts", "publicParticipationOptions", "missingInformation",
-    "questionsToAsk", "concernFocus", "evidenceFromSource", "publicCommentDraft"
+    "questionsToAsk", "concernFocus", "evidenceFromSource", "evidenceFindings", "publicCommentDraft"
   ],
   properties: {
     documentContext: {
@@ -92,6 +107,7 @@ export const publicBriefJsonSchema = {
       },
     },
     plainLanguageSummary: { type: "string" },
+    perspectiveSummary: { type: "string" },
     proposedAction: detailJsonSchema(),
     affectedGroups: detailJsonSchema(),
     financialOrRevenueConsiderations: detailJsonSchema(),
@@ -140,6 +156,22 @@ export const publicBriefJsonSchema = {
         },
       },
     },
+    evidenceFindings: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "proposedAction", "financialOrRevenueConsiderations", "privacyOrSurveillanceConsiderations",
+        "communityOrInfrastructureConsiderations", "importantDates", "publicParticipationOptions",
+      ],
+      properties: {
+        proposedAction: evidenceFindingArray(),
+        financialOrRevenueConsiderations: evidenceFindingArray(),
+        privacyOrSurveillanceConsiderations: evidenceFindingArray(),
+        communityOrInfrastructureConsiderations: evidenceFindingArray(),
+        importantDates: evidenceFindingArray(),
+        publicParticipationOptions: evidenceFindingArray(),
+      },
+    },
     publicCommentDraft: { type: "string" },
   },
 } as const;
@@ -156,6 +188,22 @@ function detailJsonSchema() {
     properties: {
       documentedFacts: stringArray(),
       possibleImplications: stringArray(),
+    },
+  } as const;
+}
+
+function evidenceFindingArray() {
+  return {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["finding", "evidence", "evidenceStatus"],
+      properties: {
+        finding: { type: "string" },
+        evidence: { type: ["string", "null"] },
+        evidenceStatus: { type: "string", enum: ["direct", "inferred", "not-specified"] },
+      },
     },
   } as const;
 }

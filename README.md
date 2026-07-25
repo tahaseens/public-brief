@@ -4,6 +4,8 @@ PublicBrief DMV helps residents understand upcoming government decisions involvi
 
 The application is politically neutral. It helps people investigate proposals and take part in public processes without recommending a political position.
 
+PublicBrief combines civic-document comprehension, source-grounded evidence, decision accountability, and public-participation guidance in one workflow. Unlike a generic document summarizer, it helps residents determine what is being decided, why the item was flagged, who holds each decision-making role, what information is missing, and how to participate before a vote.
+
 ## Problem statement
 
 Local-government decisions are often published in long agendas, procurement files, staff reports, and technical notices. The timing and language can make consequential proposals difficult to find and understand before a hearing, contract award, or final vote.
@@ -29,14 +31,16 @@ The prototype intentionally has no accounts, authentication, database, scheduled
 - Optional Loudoun County district selection and official Board directory links
 - Agenda detail views with status, dates, impacts, missing information, questions, participation routes, and source evidence
 - Strict JSON Schema output plus Zod validation for AI responses
-- Short source excerpts supporting AI-generated analysis
+- An At a glance summary assembled from the existing structured result
+- Short source excerpts beside significant findings and in a complete evidence section
+- Explicit labels for documented facts, potential implications, and missing information
 - A send-ready, neutral public-comment email draft
 - Copy controls for the complete brief and comment draft
 - Responsive layouts and visible loading, empty, success, and error states
 
 ## Supported locality
 
-Loudoun County, Virginia is the only enabled locality. Fairfax County, Montgomery County, and Washington, DC appear as disabled “Coming soon” options.
+Loudoun County, Virginia is the only enabled locality. Fairfax County appears as a disabled locality, while Maryland and Washington, DC appear as disabled state-level “Coming soon” options.
 
 Official sources and contact routes are maintained in [`data/localities.ts`](data/localities.ts). The prototype links residents to official Loudoun County meeting materials, governing-body pages, public-input instructions, and the county directory. Representatives and procedures can change, so they must be verified at the linked government source.
 
@@ -48,20 +52,23 @@ Official sources and contact routes are maintained in [`data/localities.ts`](dat
 
 An item can appear in more than one category. Its detail view explains the source language and reasoning behind each classification.
 
-## Responsible-AI safeguards
+## Security and responsible-AI safeguards
 
-The server prompt requires the model to:
+The document analyzer uses the following safeguards:
 
-- use only the pasted source text;
-- never invent dates, officials, agencies, vendors, contract terms, or procedures;
-- write `Not specified in the provided text` when evidence is unavailable;
-- separate documented facts from possible implications;
-- assess money, privacy, and infrastructure independently instead of forcing every category;
-- quote short source excerpts that support the analysis;
-- avoid legal advice and political recommendations; and
-- return only schema-conforming JSON.
+- **Server-side key use:** `OPENAI_API_KEY` is read only in the server route and is never exposed with a `NEXT_PUBLIC_` name or returned to the browser.
+- **Request validation:** Zod rejects unknown fields, malformed requests, source text outside 50–15,000 characters, unsupported perspectives, and concerns longer than 500 characters.
+- **Response validation:** the model must return strict structured JSON. Zod validates every field before the browser receives it. One format-repair attempt is allowed; a second invalid response produces a controlled error.
+- **Prompt-injection defense:** pasted text is delimited as an untrusted source document. The model is told to ignore instructions inside it and receives no tools, browsing, email, or external-action capability.
+- **Cost controls:** each server instance applies an in-memory limit of approximately five requests per IP per ten minutes, a 30-second model timeout, and a 4,000-token output limit.
+- **Safe rendering:** model output is rendered as React text, never arbitrary HTML. Model-generated URLs are not made automatically clickable; actionable contact links come from curated application data only.
+- **Grounding:** missing values use `Not specified in the provided text`; documented facts are separated from potential implications; significant findings can include short, exact source excerpts.
+- **Verification:** the interface reminds users to verify dates, procedures, decision details, contacts, and representatives through the issuing government body.
+- **Demonstration labeling:** curated or adapted feed items and contacts are labeled as demonstration data and are not presented as live pending decisions.
 
-The API route validates the request and model response with Zod. The OpenAI key is read only on the server. The interface reminds users: “PublicBrief provides an AI-assisted summary. Verify dates, procedures, and decision details with the issuing government body.”
+All API responses include `Cache-Control: no-store`. The application does not intentionally log or store pasted documents or full prompts. Submitted text is sent to the configured AI provider for analysis, so users are warned not to paste sensitive personal information. This is not a claim about the provider’s separate data-retention policies.
+
+The application also sends a restrictive Content Security Policy and standard anti-framing, MIME-sniffing, referrer, camera, microphone, and geolocation headers.
 
 ## Technology stack
 
@@ -109,6 +116,8 @@ Never expose either variable with a `NEXT_PUBLIC_` prefix, paste a secret into c
 ```powershell
 npm.cmd run dev      # Start local development
 npm.cmd run lint     # Run ESLint
+npm.cmd run typecheck # Run the TypeScript compiler without emitting files
+npm.cmd run test:security # Check request validation, rate limiting, and malformed response rejection
 npm.cmd run build    # Type-check and create a production build
 npm.cmd run start    # Serve the production build
 ```
@@ -126,13 +135,14 @@ The simplest path is Vercel:
 
 Any Node.js host that supports Next.js server routes can also run `npm run build` followed by `npm run start`. A static-only host will not support `/api/brief`.
 
-## Known limitations
+## Current prototype limitations
 
-- Dashboard items are curated demonstration content, not current or continuously monitored agenda items.
-- Loudoun County is the only configured locality.
-- Official contacts, representatives, meeting dates, and participation procedures can change.
-- District selection is manual; no address is requested or matched.
-- AI analysis can still be incomplete or incorrect and must be checked against the original source.
+- PublicBrief is not legal advice, and it does not recommend a political position.
+- AI output may be incomplete or incorrect. Users must verify official dates, contacts, requirements, and participation procedures.
+- Locality scanning is limited to curated prototype data. Continuous agenda monitoring is not implemented.
+- Loudoun County is the only configured locality; the included Virginia items are demonstration examples.
+- Representative matching is not automatic. District selection is manual and no address is collected.
+- The in-memory rate limit is a lightweight hackathon safeguard. It resets when a server instance restarts and is not synchronized across Vercel instances.
 - The analyzer accepts pasted text only; it does not parse URLs, PDFs, or uploaded documents.
 - There are no saved briefs, historical comparisons, alerts, or automated messages.
 
@@ -162,6 +172,7 @@ Potential adapters include `LegistarAdapter`, `CivicPlusAdapter`, `HtmlAgendaAda
 
 - `app/page.tsx` — two-mode client experience and document analyzer
 - `app/api/brief/route.ts` — server-only OpenAI request and request validation
+- `next.config.ts` — application security headers
 - `components/locality-dashboard.tsx` — dashboard, cards, district selector, and detail view
 - `data/agenda-items.ts` — typed demonstration agenda items
 - `data/localities.ts` — official locality, body, representative, and participation configuration

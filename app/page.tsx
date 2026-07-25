@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useMemo, useRef, useState } from "react";
 import type { PublicBrief } from "@/lib/brief";
 import { LocalityDashboard } from "@/components/locality-dashboard";
 
@@ -18,6 +18,8 @@ Phase 2 is underway and concerns possible policy guidance and use-specific zonin
 The county states that residents may submit comments to Planning and Zoning staff through the project page. Comments are typically incorporated into staff reports before Planning Commission and Board of Supervisors public hearings. Residents may also provide input directly to the Board using the county's public-input process.`;
 
 const perspectives = ["Resident", "Parent", "Small-business owner", "Community organization", "Other"] as const;
+const NOT_SPECIFIED = "Not specified in the provided text";
+const NO_RELEVANT_INFORMATION = "No relevant information was identified in the provided text.";
 
 type SectionKey = Exclude<PublicBrief["concernFocus"]["mostRelevantSection"], "none">;
 type SectionValue = PublicBrief[SectionKey];
@@ -37,13 +39,27 @@ const copySections: Array<{ key: SectionKey; title: string; hint: string }> = [
   { key: "questionsToAsk", title: "Questions to ask", hint: "Useful, neutral follow-up questions" },
 ];
 
-const sections = copySections.filter(
-  (section) => section.key !== "decisionMakingBody" && section.key !== "responsibleEntities",
-);
-const participationSectionIndex = sections.findIndex((section) => section.key === "publicParticipationOptions");
+const sectionByKey = Object.fromEntries(copySections.map((section) => [section.key, section])) as Record<SectionKey, (typeof copySections)[number]>;
+
+const primarySectionKeys = ["proposedAction", "importantDates", "publicParticipationOptions"] as const;
+const secondarySectionKeys = [
+  "affectedGroups",
+  "financialOrRevenueConsiderations",
+  "privacyOrSurveillanceConsiderations",
+  "communityOrInfrastructureConsiderations",
+] as const;
+const supportingSectionKeys = ["missingInformation", "questionsToAsk"] as const;
 
 export default function Home() {
   const [mode, setMode] = useState<"scan" | "analyze">("scan");
+
+  function handleModeKeys(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextMode = event.key === "ArrowLeft" || event.key === "Home" ? "scan" : "analyze";
+    setMode(nextMode);
+    document.getElementById(`${nextMode}-tab`)?.focus();
+  }
 
   return (
     <main>
@@ -64,12 +80,12 @@ export default function Home() {
         <p>PublicBrief DMV helps residents understand upcoming government decisions involving public money, surveillance, land use, infrastructure, and community services. It identifies what is being proposed, who is responsible for the decision, what information may be missing, and how residents can participate before a final vote.</p>
       </section>
 
-      <nav className="mode-switcher" aria-label="PublicBrief modes">
-        <button type="button" className={mode === "scan" ? "active" : ""} aria-pressed={mode === "scan"} onClick={() => setMode("scan")}><span>01</span> Scan My Locality</button>
-        <button type="button" className={mode === "analyze" ? "active" : ""} aria-pressed={mode === "analyze"} onClick={() => setMode("analyze")}><span>02</span> Analyze a Document</button>
+      <nav className="mode-switcher" aria-label="PublicBrief modes" role="tablist">
+        <button id="scan-tab" type="button" role="tab" aria-selected={mode === "scan"} aria-controls="scan-panel" tabIndex={mode === "scan" ? 0 : -1} className={mode === "scan" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("scan")}><span>01</span> Scan My Locality</button>
+        <button id="analyze-tab" type="button" role="tab" aria-selected={mode === "analyze"} aria-controls="analyze-panel" tabIndex={mode === "analyze" ? 0 : -1} className={mode === "analyze" ? "active" : ""} onKeyDown={handleModeKeys} onClick={() => setMode("analyze")}><span>02</span> Analyze a Document</button>
       </nav>
 
-      {mode === "scan" ? <LocalityDashboard /> : <DocumentAnalyzer />}
+      {mode === "scan" ? <div id="scan-panel" role="tabpanel" aria-labelledby="scan-tab"><LocalityDashboard /></div> : <DocumentAnalyzer />}
 
       <footer><div className="brand"><span className="brand-mark" aria-hidden="true">PB</span><span>PublicBrief <small>DMV</small></span></div><p>Understanding Public Decisions</p><p>Politically neutral. Not legal advice, always verify official details.</p></footer>
     </main>
@@ -85,7 +101,10 @@ function DocumentAnalyzer() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<"brief" | "comment" | null>(null);
   const [submittedConcern, setSubmittedConcern] = useState("");
+  const [submittedPerspective, setSubmittedPerspective] = useState<(typeof perspectives)[number]>("Resident");
+  const [sampleLoaded, setSampleLoaded] = useState(false);
   const resultsRef = useRef<HTMLElement>(null);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
 
   const charCount = text.length;
   const fullBrief = useMemo(() => brief ? briefToText(brief) : "", [brief]);
@@ -111,6 +130,7 @@ function DocumentAnalyzer() {
       if (!response.ok) throw new Error(data.error || "The brief could not be generated.");
       setBrief(data);
       setSubmittedConcern(concern.trim());
+      setSubmittedPerspective(perspective);
       setStatus("success");
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (caught) {
@@ -127,13 +147,17 @@ function DocumentAnalyzer() {
 
   function loadSample() {
     setText(SAMPLE_NOTICE);
+    setPerspective("Resident");
+    setConcern("Land use, infrastructure capacity, and public participation");
+    setSampleLoaded(true);
     setBrief(null);
     setError("");
     setStatus("idle");
+    requestAnimationFrame(() => generateButtonRef.current?.focus());
   }
 
   return (
-    <div className="analyzer-mode">
+    <div className="analyzer-mode" id="analyze-panel" role="tabpanel" aria-labelledby="analyze-tab">
       <section className="hero">
         <p className="eyebrow">Manual document analyzer</p>
         <h2>Analyze a government document</h2>
@@ -152,8 +176,8 @@ function DocumentAnalyzer() {
         <form onSubmit={submit}>
           <div className="textarea-wrap">
             <label htmlFor="source-text">Government agenda item or public notice</label>
-            <textarea id="source-text" value={text} onChange={(event) => setText(event.target.value)} maxLength={30000} placeholder="Paste the full text here…" aria-describedby="text-help" />
-            <div className="textarea-meta" id="text-help"><span>Use the original text for the most reliable result.</span><span>{charCount.toLocaleString()} / 30,000</span></div>
+            <textarea id="source-text" value={text} onChange={(event) => { setText(event.target.value); setSampleLoaded(false); }} maxLength={15000} placeholder="Paste the full text here…" aria-describedby={`text-help${status === "error" ? " analysis-error" : ""}`} aria-invalid={status === "error"} />
+            <div className="textarea-meta" id="text-help"><span>Use the original text for the most reliable result.</span><span>{charCount.toLocaleString()} / 15,000</span></div>
           </div>
 
           <div className="form-grid">
@@ -171,12 +195,15 @@ function DocumentAnalyzer() {
             </div>
           </div>
 
-          {status === "error" && <div className="message error" role="alert"><strong>We hit a snag.</strong> {error}</div>}
+          {status === "error" && <div className="message error" id="analysis-error" role="alert"><strong>We hit a snag.</strong> {error}</div>}
 
-          <button className="generate-button" type="submit" disabled={status === "loading" || text.trim().length === 0}>
+          {sampleLoaded && <p className="sample-ready" role="status">Demo-ready sample loaded</p>}
+
+          <button ref={generateButtonRef} className={`generate-button ${sampleLoaded ? "sample-attention" : ""}`} type="submit" disabled={status === "loading" || text.trim().length === 0} aria-describedby={sampleLoaded ? "sample-generate-note" : undefined}>
             {status === "loading" ? <><span className="spinner" /> Reading the public record…</> : <>Generate Public Brief</>}
           </button>
-          <p className="privacy-note">Your text is sent to the AI provider to generate this brief. Don’t paste sensitive personal information.</p>
+          {sampleLoaded && <span className="sr-only" id="sample-generate-note">The demonstration sample is ready to analyze.</span>}
+          <p className="privacy-note">Your text is sent to an AI provider for analysis. Don’t paste sensitive personal information. PublicBrief does not intentionally store submitted text in the application.</p>
         </form>
       </section>
 
@@ -208,6 +235,8 @@ function DocumentAnalyzer() {
 
           <div className="verify-banner"><span aria-hidden="true">!</span><p><strong>Verify before you act.</strong> AI can make mistakes. Confirm dates, requirements, and participation details with the issuing government body.</p></div>
 
+          <AtAGlance brief={brief} />
+
           {submittedConcern && brief.concernFocus.mostRelevantSection !== "none" && (
             <div className="concern-banner">
               <p><strong>Your focus:</strong> {submittedConcern}</p>
@@ -216,26 +245,29 @@ function DocumentAnalyzer() {
           )}
 
           <div className="card-grid">
-            <ResultCard title={sections[0].title} hint={sections[0].hint} value={brief[sections[0].key]} index={1} featured relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === sections[0].key} />
+            <ResultCard
+              {...sectionByKey.proposedAction}
+              value={brief.proposedAction}
+              evidence={brief.evidenceFindings.proposedAction}
+              index={1}
+              relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === "proposedAction"}
+            />
             <DecisionRolesCard
               brief={brief}
               index={2}
               relevant={submittedConcern !== "" && ["decisionMakingBody", "responsibleEntities"].includes(brief.concernFocus.mostRelevantSection)}
             />
-            {sections.slice(1, participationSectionIndex + 1).map((section, index) => (
-              <ResultCard key={section.key} title={section.title} hint={section.hint} value={brief[section.key]} index={index + 3} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === section.key} />
+            {primarySectionKeys.slice(1).map((key, index) => (
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={brief.evidenceFindings[key]} index={index + 3} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
-            <AnalyzerContactsCard contacts={brief.contacts} index={10} />
-            {sections.slice(participationSectionIndex + 1).map((section, index) => (
-              <ResultCard key={section.key} title={section.title} hint={section.hint} value={brief[section.key]} index={index + 11} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === section.key} />
+            <PerspectiveCard perspective={submittedPerspective} summary={brief.perspectiveSummary} index={5} />
+            {secondarySectionKeys.map((key, index) => (
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} evidence={key === "affectedGroups" ? undefined : brief.evidenceFindings[key]} index={index + 6} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
+            ))}
+            {supportingSectionKeys.map((key, index) => (
+              <ResultCard key={key} title={sectionByKey[key].title} hint={sectionByKey[key].hint} value={brief[key]} index={index + 10} relevant={submittedConcern !== "" && brief.concernFocus.mostRelevantSection === key} />
             ))}
           </div>
-
-          <article className="comment-card">
-            <div><p className="card-index">{sections.length + 3} / EMAIL-READY</p><h3>Public-comment draft</h3><p className="card-hint">Add your name, review the details, and send it to the issuing body.</p></div>
-            <div className="comment-copy">{brief.publicCommentDraft}</div>
-            <button className="copy-button dark" onClick={() => copy(brief.publicCommentDraft, "comment")}>{copied === "comment" ? "Copied" : "Copy email-ready comment"}</button>
-          </article>
 
           <section className="analyzer-evidence">
             <div><p className="result-kicker">Source grounding</p><h3>Evidence from the source</h3><p>Short excerpts that support the analysis above.</p></div>
@@ -245,6 +277,16 @@ function DocumentAnalyzer() {
               ))}
             </div>
           </section>
+
+          <details className="comment-card">
+            <summary><span><span className="card-index">EMAIL-READY</span><strong>Public-comment draft</strong><small><span className="draft-show">Show</span><span className="draft-hide">Hide</span> draft</small></span></summary>
+            <div className="comment-card-body">
+              <div><h3>Public-comment draft</h3><p className="card-hint">Add your name, verify the details, and send it to the issuing body.</p></div>
+              <div className="comment-copy">{brief.publicCommentDraft}</div>
+              <button className="copy-button dark" type="button" onClick={() => copy(brief.publicCommentDraft, "comment")}>{copied === "comment" ? "Copied" : "Copy email-ready comment"}</button>
+            </div>
+          </details>
+          <span className="sr-only" role="status" aria-live="polite">{copied === "brief" ? "Complete brief copied." : copied === "comment" ? "Public-comment draft copied." : ""}</span>
         </section>
       )}
 
@@ -252,12 +294,41 @@ function DocumentAnalyzer() {
   );
 }
 
-function ResultCard({ title, hint, value, index, featured, relevant }: { title: string; hint: string; value: SectionValue; index: number; featured?: boolean; relevant?: boolean }) {
+function AtAGlance({ brief }: { brief: PublicBrief }) {
+  const flaggedCategories = [
+    hasRelevantInformation(brief.financialOrRevenueConsiderations) ? "Public Money" : null,
+    hasRelevantInformation(brief.privacyOrSurveillanceConsiderations) ? "Privacy & Surveillance" : null,
+    hasRelevantInformation(brief.communityOrInfrastructureConsiderations) ? "Community & Infrastructure" : null,
+  ].filter(Boolean) as string[];
+  const decision = brief.proposedAction.documentedFacts[0] || NOT_SPECIFIED;
+  const participation = brief.publicParticipationOptions[0] || NOT_SPECIFIED;
+
   return (
-    <article className={`result-card ${featured ? "featured" : ""} ${relevant ? "most-relevant" : ""}`}>
+    <section className="at-a-glance" aria-labelledby="at-a-glance-title">
+      <div className="at-a-glance-heading">
+        <p className="result-kicker">Five-second brief</p>
+        <h3 id="at-a-glance-title">At a glance</h3>
+        <p>{brief.plainLanguageSummary}</p>
+      </div>
+      <dl>
+        <div><dt>Decision</dt><dd>{decision}</dd></div>
+        <div><dt>Status</dt><dd>{brief.documentContext.currentStatus || NOT_SPECIFIED}</dd></div>
+        <div><dt>Meeting</dt><dd>{brief.documentContext.meetingOrDecisionDate || NOT_SPECIFIED}</dd></div>
+        <div><dt>Decision-maker</dt><dd>{brief.decisionMakingBody || NOT_SPECIFIED}</dd></div>
+        <div><dt>Participation</dt><dd>{participation}</dd></div>
+        <div><dt>Flagged for</dt><dd>{flaggedCategories.length ? flaggedCategories.join(" · ") : NOT_SPECIFIED}</dd></div>
+      </dl>
+    </section>
+  );
+}
+
+function ResultCard({ title, hint, value, evidence, index, relevant }: { title: string; hint: string; value: SectionValue; evidence?: PublicBrief["evidenceFindings"][keyof PublicBrief["evidenceFindings"]]; index: number; relevant?: boolean }) {
+  return (
+    <article className={`result-card ${relevant ? "most-relevant" : ""}`}>
       <div className="card-topline"><p className="card-index">{String(index).padStart(2, "0")}</p>{relevant && <span className="relevance-label">Most relevant to your concern</span>}</div>
       <h3>{title}</h3><p className="card-hint">{hint}</p>
       <div className="card-content"><Value value={value} /></div>
+      {evidence && evidence.some((finding) => finding.evidence) && <EvidenceDetails findings={evidence} />}
     </article>
   );
 }
@@ -272,47 +343,45 @@ function DecisionRolesCard({ brief, index, relevant }: { brief: PublicBrief; ind
         <div className="decision-body-summary"><span>Decision-making body</span><strong>{brief.decisionMakingBody}</strong></div>
         <Value value={brief.responsibleEntities} />
       </div>
+      <div className="decision-contact-line">
+        <strong>Source-stated contact information</strong>
+        {brief.contacts.length ? (
+          <ul>{brief.contacts.map((contact, contactIndex) => {
+            const identity = contact.name || contact.organization || contact.title || NOT_SPECIFIED;
+            const details = [contact.title, contact.district, contact.organization, contact.email, contact.phone, contact.website, contact.contactFormUrl]
+              .filter((value, index, values) => value && value !== identity && values.indexOf(value) === index);
+            return <li key={`${contact.roleLabel}-${contactIndex}`}><span>{contact.roleLabel}:</span> {identity}{details.length ? ` — ${details.join(" · ")}` : ""}</li>;
+          })}</ul>
+        ) : <p>No contact information was identified in the provided text. Check the issuing body’s official page.</p>}
+      </div>
     </article>
   );
 }
 
-function AnalyzerContactsCard({ contacts, index }: { contacts: PublicBrief["contacts"]; index: number }) {
+function PerspectiveCard({ perspective, summary, index }: { perspective: string; summary: string; index: number }) {
   return (
-    <article className="result-card who-to-contact-card">
+    <article className="result-card perspective-card">
       <div className="card-topline"><p className="card-index">{String(index).padStart(2, "0")}</p></div>
-      <h3>Who to contact</h3>
-      <p className="card-hint">Relevant officials and government contacts for this decision.</p>
-      <div className="contact-panel analyzer-contact-panel">
-        {contacts.length ? (
-          <div className="contact-list">
-            {contacts.map((contact, contactIndex) => {
-              const primaryName = contact.name || contact.organization || contact.title;
-              const website = safeExternalUrl(contact.website);
-              const contactFormUrl = safeExternalUrl(contact.contactFormUrl);
-              const phoneHref = contact.phone ? contact.phone.replace(/[^\d+]/g, "") : "";
-              return (
-                <section className="contact-entry" key={`${contact.roleLabel}-${contactIndex}`} aria-labelledby={`analyzer-contact-${contactIndex}`}>
-                  <h4 id={`analyzer-contact-${contactIndex}`}>{contact.roleLabel}</h4>
-                  {primaryName && <strong>{primaryName}</strong>}
-                  {contact.title && contact.title !== primaryName && <p>{contact.title}</p>}
-                  {contact.district && <p>{contact.district}</p>}
-                  {contact.organization && contact.organization !== primaryName && <p>{contact.organization}</p>}
-                  <div className="contact-actions">
-                    {contact.email && <a href={`mailto:${contact.email}`} aria-label={`Email ${primaryName || contact.roleLabel}`}>Email</a>}
-                    {phoneHref && <a href={`tel:${phoneHref}`} aria-label={`Call ${primaryName || contact.roleLabel}`}>Call</a>}
-                    {website && <a href={website} target="_blank" rel="noreferrer" aria-label={`Open official page for ${primaryName || contact.roleLabel}`}>Official page</a>}
-                    {contactFormUrl && <a href={contactFormUrl} target="_blank" rel="noreferrer" aria-label={`Open contact form for ${primaryName || contact.roleLabel}`}>Contact form</a>}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="contact-empty">Contact information is not yet available for this item. Check the issuing government body’s official meeting page or staff report.</p>
-        )}
-        <p className="contact-footer">Confirm your district and current representative through the official government directory before contacting them.</p>
-      </div>
+      <h3>What this means to you as a {perspective.toLocaleLowerCase()}</h3>
+      <p className="card-hint">Perspective-aware emphasis, without adding facts or recommending a position</p>
+      <div className="card-content"><p>{summary}</p></div>
     </article>
+  );
+}
+
+function EvidenceDetails({ findings }: { findings: PublicBrief["evidenceFindings"][keyof PublicBrief["evidenceFindings"]] }) {
+  const visibleFindings = findings.filter((finding) => finding.evidence);
+  return (
+    <details className="inline-evidence">
+      <summary>Source evidence</summary>
+      <div>{visibleFindings.map((finding, index) => (
+        <section key={`${finding.finding}-${index}`}>
+          <span className={`evidence-status ${finding.evidenceStatus}`}>{evidenceStatusLabel(finding.evidenceStatus)}</span>
+          <p>{finding.finding}</p>
+          {finding.evidence && <blockquote>“{finding.evidence}”</blockquote>}
+        </section>
+      ))}</div>
+    </details>
   );
 }
 
@@ -325,7 +394,19 @@ function Value({ value }: { value: SectionValue }) {
     }
     return <ul>{(value as string[]).map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>;
   }
-  return <><h4>Documented facts</h4><ul>{value.documentedFacts.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul><h4>Possible implications</h4><ul>{value.possibleImplications.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></>;
+  const notSpecified = value.documentedFacts.length === 0 || value.documentedFacts.every((item) => item === NOT_SPECIFIED || item === NO_RELEVANT_INFORMATION);
+  if (notSpecified) return <div className="not-specified"><h4>Not specified</h4><p>{value.documentedFacts[0] || NOT_SPECIFIED}</p></div>;
+  return <><h4>Documented in the source</h4><ul>{value.documentedFacts.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul>{value.possibleImplications.length > 0 && <><h4>Potential implications</h4><ul>{value.possibleImplications.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></>}</>;
+}
+
+function hasRelevantInformation(value: PublicBrief["financialOrRevenueConsiderations"]) {
+  return value.documentedFacts.some((item) => item !== NOT_SPECIFIED && item !== NO_RELEVANT_INFORMATION);
+}
+
+function evidenceStatusLabel(status: "direct" | "inferred" | "not-specified") {
+  if (status === "direct") return "Directly stated";
+  if (status === "inferred") return "Potential implication";
+  return "Not specified";
 }
 
 function briefToText(brief: PublicBrief) {
@@ -340,6 +421,9 @@ function briefToText(brief: PublicBrief) {
     "",
     "PLAIN-LANGUAGE SUMMARY",
     brief.plainLanguageSummary,
+    "",
+    "PERSPECTIVE SUMMARY",
+    brief.perspectiveSummary,
   ];
   for (const section of copySections.slice(1)) {
     const value = brief[section.key];
@@ -352,7 +436,7 @@ function briefToText(brief: PublicBrief) {
       }
     }
     else if (typeof value === "string") lines.push(value);
-    else if (typeof value === "object") lines.push("Documented facts:", ...value.documentedFacts.map((item) => `• ${item}`), "Possible implications:", ...value.possibleImplications.map((item) => `• ${item}`));
+    else if (typeof value === "object") lines.push("Documented in the source:", ...value.documentedFacts.map((item) => `• ${item}`), "Potential implications:", ...value.possibleImplications.map((item) => `• ${item}`));
   }
   lines.push("", "WHO TO CONTACT");
   if (brief.contacts.length) {
@@ -367,14 +451,4 @@ function briefToText(brief: PublicBrief) {
   lines.push("", "EVIDENCE FROM THE SOURCE", ...brief.evidenceFromSource.map((evidence) => `• “${evidence.excerpt}” — ${evidence.supports}`));
   lines.push("", "PUBLIC-COMMENT DRAFT", brief.publicCommentDraft, "", "Verify details with the issuing government body. Not legal advice.");
   return lines.join("\n");
-}
-
-function safeExternalUrl(value: string | null) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:" ? value : null;
-  } catch {
-    return null;
-  }
 }

@@ -39,6 +39,10 @@ export const loudounCounty: LocalityConfig = {
 export const localityOptions = [
   { id: loudounCounty.id, name: "Loudoun County, Virginia", supported: true },
   { id: "fairfax-county-va", name: "Fairfax County, Virginia — Coming soon", supported: false },
-  { id: "montgomery-county-md", name: "Montgomery County, Maryland — Coming soon", supported: false },
+] as const;
+
+export const stateOptions = [
+  { id: "virginia", name: "Virginia", supported: true },
+  { id: "maryland", name: "Maryland — Coming soon", supported: false },
   { id: "washington-dc", name: "Washington, DC — Coming soon", supported: false },
 ] as const;
